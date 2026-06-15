@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>試合日程作成 | 3種委員会</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --blue:#003087;--blue-d:#001f5c;--blue-l:#0050c8;
+  --accent:#e8001e;--gold:#c8a000;--green:#006830;
+  --bg:#f0f2f7;--card:#fff;--text:#1a1a2e;--sub:#5a5a7a;--border:#d0d4e0;
+  --r:8px;--sh:0 2px 14px rgba(0,48,135,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+.nav{background:var(--blue);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.nav-brand{color:#fff;font-size:13px;font-weight:700;line-height:1.3}
+.nav-brand span{display:block;font-size:10px;opacity:.7;font-weight:400}
+.nav-links{display:flex;gap:8px}
+.nav-link{color:rgba(255,255,255,.7);font-size:12px;text-decoration:none;padding:5px 10px;border:1px solid rgba(255,255,255,.3);border-radius:4px}
+
+.main{max-width:1100px;margin:0 auto;padding:20px 14px 80px}
+
+/* TABS */
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;overflow-x:auto;scrollbar-width:none}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{flex:none;padding:10px 20px;border:none;background:none;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}
+.card-head{background:var(--blue);color:#fff;padding:11px 18px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-pad{padding:20px}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .2s}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blue-l)}
+.btn-success{background:var(--green);color:#fff}.btn-success:hover{opacity:.85}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{opacity:.85}
+.btn-accent{background:var(--accent);color:#fff}.btn-accent:hover{opacity:.85}
+.btn-ghost{background:#f0f2f7;color:var(--text);border:1.5px solid var(--border)}.btn-ghost:hover{background:var(--border)}
+.btn-sm{padding:6px 12px;font-size:12px}
+
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px}
+.form-g{display:flex;flex-direction:column;gap:5px}
+.form-g label{font-size:12px;font-weight:600;color:var(--sub)}
+.form-g input,.form-g select,.form-g textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;transition:border-color .2s}
+.form-g input:focus,.form-g select:focus{outline:none;border-color:var(--blue)}
+.form-g textarea{resize:vertical;min-height:70px}
+
+/* TEAMS INPUT */
+.team-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:12px}
+.team-input-row{display:flex;align-items:center;gap:6px}
+.team-num{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.team-input-row input{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit}
+
+/* SCHEDULE TABLE */
+.schedule-wrap{overflow-x:auto}
+.schedule-table{border-collapse:collapse;font-size:12px;min-width:700px;width:100%}
+.schedule-table th{background:var(--blue);color:#fff;padding:8px 10px;text-align:center;border:1px solid rgba(255,255,255,.2);font-size:11px;white-space:nowrap}
+.schedule-table td{padding:8px 10px;border:1px solid var(--border);text-align:center;vertical-align:middle}
+.schedule-table tr:hover td{background:#f8f9fc}
+.round-head{background:#f0f3fa;font-weight:700;color:var(--blue)}
+.match-num{color:var(--sub);font-size:11px;min-width:24px}
+.vs-cell{font-weight:700;color:var(--text)}
+.team-a{color:var(--blue);font-weight:600}
+.team-b{color:var(--accent);font-weight:600}
+.result-cell{font-weight:700;font-size:13px}
+
+/* STANDINGS TABLE */
+.standings-table{width:100%;border-collapse:collapse;font-size:12px}
+.standings-table th{background:#f0f3fa;color:var(--sub);font-size:11px;font-weight:700;padding:8px 8px;border-bottom:2px solid var(--border);text-align:center}
+.standings-table th:first-child{text-align:left;padding-left:12px}
+.standings-table td{padding:9px 8px;border-bottom:1px solid #eef0f5;text-align:center}
+.standings-table td:first-child,.standings-table td:nth-child(2){text-align:left;padding-left:12px}
+.standings-table tr:hover td{background:#f8f9fc}
+.rank-gold{color:var(--gold);font-weight:700}
+.rank-silver{color:#888;font-weight:700}
+.rank-bronze{color:#a06030;font-weight:700}
+.pts-cell{font-weight:700;color:var(--blue);font-size:14px}
+
+/* RESULT INPUT */
+.result-input{display:flex;align-items:center;gap:8px;justify-content:center}
+.result-input input{width:48px;text-align:center;font-size:16px;font-weight:700;padding:6px;border:2px solid var(--blue);border-radius:6px}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.badge-blue{background:#e8f0ff;color:var(--blue)}
+.badge-green{background:#e6f7ed;color:var(--green)}
+.badge-gold{background:#fff8e0;color:var(--gold)}
+.badge-gray{background:#f0f2f7;color:var(--sub)}
+.badge-red{background:#ffe8ea;color:var(--accent)}
+
+/* COMBO TABLE (組み合わせ表) */
+.combo-table{border-collapse:collapse;font-size:11px;width:100%}
+.combo-table th{background:var(--blue-d);color:#fff;padding:6px 8px;border:1px solid rgba(255,255,255,.15);text-align:center;font-size:10px}
+.combo-table td{padding:6px 8px;border:1px solid var(--border);text-align:center;vertical-align:middle}
+.combo-table .round-label{background:#e8f0ff;font-weight:700;color:var(--blue);font-size:11px}
+.combo-vs{font-weight:700;color:var(--sub)}
+
+/* DISCIPLINE */
+.disc-table{width:100%;border-collapse:collapse;font-size:12px}
+.disc-table th{background:#f0f3fa;color:var(--sub);font-weight:700;font-size:11px;padding:7px 10px;border-bottom:2px solid var(--border);text-align:left}
+.disc-table td{padding:8px 10px;border-bottom:1px solid #eef0f5;vertical-align:middle}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 24px;border-radius:24px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+/* PRINT */
+@media print{
+  .nav,.tab-bar,.btn,.card-head .btn,.no-print{display:none!important}
+  .card{box-shadow:none;border-radius:0}
+  body{background:#fff}
+}
+
+@media(max-width:640px){
+  .form-grid{grid-template-columns:1fr}
+  .team-inputs{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<nav class="nav">
+  <div class="nav-brand">試合日程作成システム<br><span>山梨県U15リーグ 3種委員会</span></div>
+  <div class="nav-links">
+    <a href="admin.html" class="nav-link">管理画面</a>
+    <a href="stamp.html" class="nav-link">電子印鑑</a>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('setup')">⚙️ 基本設定</button>
+    <button class="tab-btn" onclick="showTab('combo')">🔀 組み合わせ表</button>
+    <button class="tab-btn" onclick="showTab('schedule')">📅 試合日程表</button>
+    <button class="tab-btn" onclick="showTab('results')">⚽ 結果入力</button>
+    <button class="tab-btn" onclick="showTab('standings')">🏆 順位表</button>
+    <button class="tab-btn" onclick="showTab('scorers')">⚽ 得点ランキング</button>
+    <button class="tab-btn" onclick="showTab('discipline')">🟨 警告・退場</button>
+  </div>
+
+  <!-- ① SETUP -->
+  <div class="tab-pane active" id="tab-setup">
+    <div class="card">
+      <div class="card-head">⚙️ リーグ基本情報</div>
+      <div class="card-pad">
+        <div class="form-grid">
+          <div class="form-g"><label>年度</label><input type="number" id="s_year" value="2026" min="2020" max="2030"></div>
+          <div class="form-g"><label>前期 / 後期</label>
+            <select id="s_term"><option value="前期">前期</option><option value="後期" selected>後期</option></select>
+          </div>
+          <div class="form-g"><label>リーグ名</label><input type="text" id="s_league" value="U15 Aリーグ" placeholder="例: U15 Aリーグ"></div>
+          <div class="form-g"><label>チーム数</label>
+            <select id="s_teamCount" onchange="updateTeamInputs()">
+              <option value="4">4チーム</option>
+              <option value="5">5チーム</option>
+              <option value="6">6チーム</option>
+              <option value="7">7チーム</option>
+              <option value="8" selected>8チーム</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">👥 参加チーム登録</div>
+      <div class="card-pad">
+        <div class="team-inputs" id="teamInputs"></div>
+        <button class="btn btn-primary" onclick="generateSchedule()" style="margin-top:8px">
+          🔀 組み合わせ・日程を自動生成
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">📅 試合日・会場設定</div>
+      <div class="card-pad">
+        <p style="font-size:12px;color:var(--sub);margin-bottom:14px">各節の試合日・会場・担当者を入力してください。</p>
+        <div id="roundDateInputs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② COMBO TABLE -->
+  <div class="tab-pane" id="tab-combo">
+    <div class="card">
+      <div class="card-head">
+        🔀 組み合わせ表
+        <div class="no-print" style="display:flex;gap:6px">
+          <button class="btn btn-gold btn-sm" onclick="exportComboExcel()">📊 Excel出力</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 印刷/PDF</button>
+        </div>
+      </div>
+      <div class="card-pad">
+        <div id="comboTitle" style="text-align:center;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--blue)" id="comboTitleText"></div>
+        </div>
+        <div class="schedule-wrap" id="comboTableWrap">
+          <div style="color:var(--sub);text-align:center;padding:40px">基本設定でチームを登録し「組み合わせを自動生成」してください</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ SCHEDULE -->
+  <div class="tab-pane" id="tab-schedule">
+    <div class="card">
+      <div class="card-head">
+        📅 試合日程表
+        <div class="no-print" style="display:flex;gap:6px">
+          <button class="btn btn-gold btn-sm" onclick="exportScheduleExcel()">📊 Excel出力</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 印刷/PDF</button>
+        </div>
+      </div>
+      <div class="card-pad">
+        <div id="scheduleHeader" style="text-align:center;margin-bottom:16px"></div>
+        <div class="schedule-wrap" id="scheduleTableWrap">
+          <div style="color:var(--sub);text-align:center;padding:40px">日程を生成してください</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ RESULTS -->
+  <div class="tab-pane" id="tab-results">
+    <div class="card">
+      <div class="card-head">⚽ 試合結果入力</div>
+      <div class="card-pad">
+        <div class="form-g" style="max-width:300px;margin-bottom:16px">
+          <label>節を選択</label>
+          <select id="resultRoundSel" onchange="renderResultsForm()">
+            <option value="">-- 節を選択 --</option>
+          </select>
+        </div>
+        <div id="resultsFormArea"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ STANDINGS -->
+  <div class="tab-pane" id="tab-standings">
+    <div class="card">
+      <div class="card-head">
+        🏆 順位表
+        <div class="no-print" style="display:flex;gap:6px">
+          <button class="btn btn-gold btn-sm" onclick="exportStandingsExcel()">📊 Excel出力</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 印刷/PDF</button>
+        </div>
+      </div>
+      <div class="card-pad">
+        <div id="standingsTitle" style="text-align:center;font-size:13px;font-weight:700;color:var(--blue);margin-bottom:12px"></div>
+        <div style="overflow-x:auto">
+          <table class="standings-table">
+            <thead><tr>
+              <th style="text-align:left;padding-left:12px">#</th>
+              <th style="text-align:left">チーム名</th>
+              <th>試</th><th>勝</th><th>分</th><th>敗</th>
+              <th>得</th><th>失</th><th>差</th><th>勝点</th>
+            </tr></thead>
+            <tbody id="standingsBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--sub);padding:8px 12px;background:#f8f9fc;border-radius:4px">
+          ※ 同勝点の場合：得失点差 → 総得点 → 直接対決の順で順位を決定
+        </div>
+      </div>
+    </div>
+
+    <!-- 勝敗表（総当たり） -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">📊 勝敗表（総当たり）</div>
+      <div class="card-pad" style="overflow-x:auto">
+        <div id="wdlTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ SCORERS -->
+  <div class="tab-pane" id="tab-scorers">
+    <div class="card">
+      <div class="card-head">⚽ 得点ランキング</div>
+      <div class="card-pad" id="scorersBody">
+        <div style="color:var(--sub);text-align:center;padding:40px">試合結果を入力すると自動集計されます</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ DISCIPLINE -->
+  <div class="tab-pane" id="tab-discipline">
+    <div class="card">
+      <div class="card-head">🟨 警告・退場者一覧</div>
+      <div class="card-pad">
+        <table class="disc-table" id="bookingTable">
+          <thead><tr><th>選手名</th><th>チーム</th><th>節</th><th>種別</th></tr></thead>
+          <tbody id="bookingBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">🟥 出場停止者一覧</div>
+      <div class="card-pad">
+        <table class="disc-table" id="suspTable">
+          <thead><tr><th>選手名</th><th>チーム</th><th>理由</th><th>停止節</th></tr></thead>
+          <tbody id="suspBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DATA LAYER（将来のJSONBin拡張のため分離）
+// ═══════════════════════════════════════════════════
+const Storage = {
+  KEY: 'yamanashi_u15_schedule_v1',
+  save(data){ try{ localStorage.setItem(this.KEY, JSON.stringify(data)); }catch(e){console.warn('save err',e);} },
+  load(){ try{ const d=localStorage.getItem(this.KEY); return d?JSON.parse(d):null; }catch(e){ return null; } },
+  clear(){ localStorage.removeItem(this.KEY); }
+  // 将来: async saveRemote(data){ await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {...}) }
+};
+
+// ─── APPLICATION STATE ───────────────────────────
+let APP = {
+  meta:{ year:2026, term:'後期', leagueName:'U15 Aリーグ' },
+  teams:[],          // ['チーム名', ...]  最大8
+  rounds:[],         /* [{
+    round: 1,
+    matches: [{matchNo, homeIdx, awayIdx, homeGoal, awayGoal, status, scorers, bookings, sendoffs}],
+    date:'', venue:'', venueManager:'', kickoff:'10:00', referee1:'', referee2:'', staff:''
+  }] */
+};
+
+// ─── 8チーム総当たり組み合わせ（ラウンドロビン） ───
+// Excelの組み合わせ表から抽出した公式パターン（インデックス0-7）
+const ROUND_ROBIN_8 = [
+  // 第1節
+  [[0,5],[1,4],[2,3],[6,7]],
+  // 第2節
+  [[1,6],[2,5],[3,4],[0,7]],
+  // 第3節
+  [[2,0],[3,6],[4,5],[1,7]],
+  // 第4節
+  [[3,1],[4,0],[5,6],[2,7]],
+  // 第5節
+  [[4,2],[5,1],[6,0],[3,7]],
+  // 第6節
+  [[5,3],[6,2],[0,1],[4,7]],
+  // 第7節
+  [[6,4],[0,3],[1,2],[5,7]],
+];
+
+// n チーム総当たり（ベルヘルスアルゴリズム）
+function generateRoundRobin(n){
+  if(n===8) return ROUND_ROBIN_8;
+  // 奇数チームの場合、ダミーを追加して偶数にする
+  const teams=[...Array(n).keys()];
+  const dummy = n%2!==0 ? n : -1;
+  const t = n%2!==0 ? [...teams, dummy] : teams;
+  const N=t.length;
+  const rounds=[];
+  for(let r=0;r<N-1;r++){
+    const matches=[];
+    for(let i=0;i<N/2;i++){
+      const h=t[i], a=t[N-1-i];
+      if(h!==dummy&&a!==dummy) matches.push([h,a]);
+    }
+    rounds.push(matches);
+    // rotate except first
+    t.splice(1,0,t.pop());
+  }
+  return rounds;
+}
+
+// ─── INIT ────────────────────────────────────────
+(function init(){
+  const saved=Storage.load();
+  if(saved){ APP=saved; restoreUI(); }
+  updateTeamInputs();
+  renderRoundDateInputs();
+  renderResultRoundSel();
+  autoRenderAll();
+})();
+
+function restoreUI(){
+  document.getElementById('s_year').value=APP.meta.year;
+  document.getElementById('s_term').value=APP.meta.term;
+  document.getElementById('s_league').value=APP.meta.leagueName;
+  document.getElementById('s_teamCount').value=APP.teams.length||8;
+  updateTeamInputs();
+  setTimeout(()=>{
+    APP.teams.forEach((name,i)=>{
+      const el=document.getElementById('team_'+i);
+      if(el) el.value=name;
+    });
+  },50);
+}
+
+// ─── UI HELPERS ──────────────────────────────────
+function showTab(name){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(name==='standings') renderStandings();
+  if(name==='scorers') renderScorers();
+  if(name==='discipline') renderDiscipline();
+  if(name==='combo') renderComboTable();
+  if(name==='schedule') renderScheduleTable();
+}
+
+function toast(msg,dur=2800){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ─── TEAM INPUTS ─────────────────────────────────
+function updateTeamInputs(){
+  const n=parseInt(document.getElementById('s_teamCount').value);
+  const wrap=document.getElementById('teamInputs');
+  const circles='①②③④⑤⑥⑦⑧⑨⑩';
+  wrap.innerHTML=Array.from({length:n},(_, i)=>`
+    <div class="team-input-row">
+      <div class="team-num">${circles[i]}</div>
+      <input type="text" id="team_${i}" placeholder="チーム名 ${i+1}" 
+        value="${APP.teams[i]||''}" oninput="APP.teams[i]='${i}'; syncTeamName(${i})">
+    </div>`).join('');
+}
+
+function syncTeamName(i){
+  APP.teams[i]=document.getElementById('team_'+i).value;
+}
+
+function getTeams(){
+  const n=parseInt(document.getElementById('s_teamCount').value);
+  return Array.from({length:n},(_,i)=>document.getElementById('team_'+i)?.value||`チーム${i+1}`);
+}
+
+// ─── GENERATE SCHEDULE ───────────────────────────
+function generateSchedule(){
+  const teams=getTeams();
+  const n=teams.length;
+  APP.meta.year=parseInt(document.getElementById('s_year').value);
+  APP.meta.term=document.getElementById('s_term').value;
+  APP.meta.leagueName=document.getElementById('s_league').value;
+  APP.teams=teams;
+
+  const rrPlan=generateRoundRobin(n);
+  let matchSeq=1;
+  APP.rounds=rrPlan.map((matches,ri)=>{
+    const existing=APP.rounds[ri]||{};
+    return {
+      round:ri+1,
+      date: existing.date||'',
+      venue: existing.venue||'',
+      venueManager: existing.venueManager||'',
+      kickoff: existing.kickoff||'10:00',
+      referee1: existing.referee1||'',
+      referee2: existing.referee2||'',
+      staff: existing.staff||'',
+      matches: matches.map(([h,a],mi)=>{
+        const exM=(existing.matches||[])[mi]||{};
+        return {
+          matchNo: matchSeq++,
+          homeIdx:h, awayIdx:a,
+          homeGoal: exM.homeGoal??null,
+          awayGoal: exM.awayGoal??null,
+          status: exM.status||'upcoming',
+          scorers: exM.scorers||[], // [{name, teamIdx, goals}]
+          bookings: exM.bookings||[], // [{name, teamIdx, type}]
+          sendoffs: exM.sendoffs||[], // [{name, teamIdx, reason}]
+        };
+      })
+    };
+  });
+
+  Storage.save(APP);
+  renderRoundDateInputs();
+  renderResultRoundSel();
+  autoRenderAll();
+  toast(`✅ ${n}チーム ${rrPlan.length}節 ${rrPlan.reduce((s,r)=>s+r.length,0)}試合 の日程を生成しました`);
+}
+
+// ─── ROUND DATE INPUTS ───────────────────────────
+function renderRoundDateInputs(){
+  if(!APP.rounds.length){
+    document.getElementById('roundDateInputs').innerHTML='<div style="color:var(--sub);font-size:12px">先にチームを登録して「自動生成」してください</div>';
+    return;
+  }
+  document.getElementById('roundDateInputs').innerHTML=APP.rounds.map((r,ri)=>`
+    <div class="card" style="margin-bottom:10px;overflow:visible">
+      <div class="card-head" style="background:#f0f3fa;color:var(--blue);font-size:12px">
+        第${r.round}節（${r.matches.length}試合）
+      </div>
+      <div class="card-pad" style="padding:12px">
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+          <div class="form-g"><label>試合日</label>
+            <input type="date" id="rd_date_${ri}" value="${r.date}" onchange="updateRound(${ri})">
+          </div>
+          <div class="form-g"><label>会場</label>
+            <input type="text" id="rd_venue_${ri}" value="${r.venue}" placeholder="会場名" onchange="updateRound(${ri})">
+          </div>
+          <div class="form-g"><label>会場責任者</label>
+            <input type="text" id="rd_manager_${ri}" value="${r.venueManager}" placeholder="氏名" onchange="updateRound(${ri})">
+          </div>
+          <div class="form-g"><label>キックオフ</label>
+            <input type="time" id="rd_ko_${ri}" value="${r.kickoff||'10:00'}" onchange="updateRound(${ri})">
+          </div>
+          <div class="form-g"><label>主審</label>
+            <input type="text" id="rd_ref1_${ri}" value="${r.referee1}" placeholder="氏名" onchange="updateRound(${ri})">
+          </div>
+          <div class="form-g"><label>副審</label>
+            <input type="text" id="rd_ref2_${ri}" value="${r.referee2}" placeholder="氏名" onchange="updateRound(${ri})">
+          </div>
+          <div class="form-g"><label>本部担当</label>
+            <input type="text" id="rd_staff_${ri}" value="${r.staff}" placeholder="氏名" onchange="updateRound(${ri})">
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--sub)">
+          対戦: ${r.matches.map(m=>`${APP.teams[m.homeIdx]||'?'} vs ${APP.teams[m.awayIdx]||'?'}`).join(' ／ ')}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function updateRound(ri){
+  const r=APP.rounds[ri];
+  r.date=document.getElementById('rd_date_'+ri)?.value||'';
+  r.venue=document.getElementById('rd_venue_'+ri)?.value||'';
+  r.venueManager=document.getElementById('rd_manager_'+ri)?.value||'';
+  r.kickoff=document.getElementById('rd_ko_'+ri)?.value||'10:00';
+  r.referee1=document.getElementById('rd_ref1_'+ri)?.value||'';
+  r.referee2=document.getElementById('rd_ref2_'+ri)?.value||'';
+  r.staff=document.getElementById('rd_staff_'+ri)?.value||'';
+  Storage.save(APP);
+}
+
+// ─── COMBO TABLE ─────────────────────────────────
+function renderComboTable(){
+  if(!APP.rounds.length){ return; }
+  const teams=APP.teams;
+  document.getElementById('comboTitleText').textContent=
+    `${APP.meta.year}年度 ${APP.meta.term} ${APP.meta.leagueName} 組み合わせ表`;
+
+  let html=`<table class="combo-table">
+    <thead><tr>
+      <th style="width:36px">節</th><th style="width:28px">#</th>
+      <th colspan="3">対戦カード</th>
+      <th>試合日</th><th>会場</th>
+    </tr></thead><tbody>`;
+
+  APP.rounds.forEach(r=>{
+    r.matches.forEach((m,mi)=>{
+      const isFirst=mi===0;
+      html+=`<tr>
+        ${isFirst?`<td class="round-label" rowspan="${r.matches.length}" style="font-size:12px;font-weight:700;color:var(--blue)">第${r.round}節</td>`:''}
+        <td style="font-size:11px;color:var(--sub)">第${m.matchNo}試合</td>
+        <td class="team-a" style="text-align:right;padding-right:4px">${teams[m.homeIdx]||''}</td>
+        <td class="combo-vs">対</td>
+        <td class="team-b" style="text-align:left;padding-left:4px">${teams[m.awayIdx]||''}</td>
+        ${isFirst?`<td rowspan="${r.matches.length}">${r.date?fmtDate(r.date):''}</td>
+        <td rowspan="${r.matches.length}">${r.venue||''}</td>`:''}
+      </tr>`;
+    });
+  });
+  html+='</tbody></table>';
+  document.getElementById('comboTableWrap').innerHTML=html;
+}
+
+// ─── SCHEDULE TABLE ──────────────────────────────
+function renderScheduleTable(){
+  if(!APP.rounds.length){ return; }
+  const teams=APP.teams;
+  const {year,term,leagueName}=APP.meta;
+  document.getElementById('scheduleHeader').innerHTML=`
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">山梨県ユース（U15）サッカーリーグ</div>
+    <div style="font-size:13px;color:var(--sub)">${year}年度 ${term} ${leagueName} グループ日程表</div>`;
+
+  let html=`<table class="schedule-table">
+    <thead><tr>
+      <th>節</th><th>試合日</th><th>キックオフ</th>
+      <th colspan="3">対戦カード</th>
+      <th>結果</th><th>会場</th><th>主審</th><th>副審</th><th>本部</th>
+    </tr></thead><tbody>`;
+
+  APP.rounds.forEach(r=>{
+    r.matches.forEach((m,mi)=>{
+      const isFirst=mi===0;
+      const result=m.status==='done'?`<span class="badge badge-blue">${m.homeGoal}-${m.awayGoal}</span>`:'<span class="badge badge-gray">未定</span>';
+      // KOは節ごとに同じ + 試合番号ごとに+90分
+      const koBase=r.kickoff||'10:00';
+      const [kh,km]=koBase.split(':').map(Number);
+      const mins=kh*60+km+mi*95; // 95分間隔
+      const ko=`${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+
+      html+=`<tr>
+        ${isFirst?`<td class="round-head" rowspan="${r.matches.length}" style="font-size:13px;font-weight:700">第${r.round}節</td>
+        <td rowspan="${r.matches.length}">${r.date?fmtDate(r.date):''}</td>`:''}
+        <td style="white-space:nowrap">${ko}</td>
+        <td class="team-a" style="text-align:right">${teams[m.homeIdx]||''}</td>
+        <td class="combo-vs">vs</td>
+        <td class="team-b">${teams[m.awayIdx]||''}</td>
+        <td>${result}</td>
+        ${isFirst?`<td rowspan="${r.matches.length}" style="font-size:11px">${r.venue||''}</td>
+        <td rowspan="${r.matches.length}" style="font-size:11px">${r.referee1||''}</td>
+        <td rowspan="${r.matches.length}" style="font-size:11px">${r.referee2||''}</td>
+        <td rowspan="${r.matches.length}" style="font-size:11px">${r.staff||''}</td>`:''}
+      </tr>`;
+    });
+  });
+  html+='</tbody></table>';
+  document.getElementById('scheduleTableWrap').innerHTML=html;
+}
+
+// ─── RESULTS FORM ────────────────────────────────
+function renderResultRoundSel(){
+  const sel=document.getElementById('resultRoundSel');
+  sel.innerHTML='<option value="">-- 節を選択 --</option>'+
+    APP.rounds.map(r=>`<option value="${r.round-1}">第${r.round}節（${r.date?fmtDate(r.date):'日程未定'}）</option>`).join('');
+}
+
+function renderResultsForm(){
+  const ri=document.getElementById('resultRoundSel').value;
+  if(ri==='') { document.getElementById('resultsFormArea').innerHTML=''; return; }
+  const r=APP.rounds[parseInt(ri)];
+  const teams=APP.teams;
+  document.getElementById('resultsFormArea').innerHTML=r.matches.map((m,mi)=>`
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-head" style="background:#f0f3fa;color:var(--blue);font-size:12px">
+        第${m.matchNo}試合 ${teams[m.homeIdx]||''} vs ${teams[m.awayIdx]||''}
+        ${m.status==='done'?'<span class="badge badge-green" style="margin-left:8px">結果済</span>':''}
+      </div>
+      <div class="card-pad" style="padding:14px">
+        <div class="result-input" style="margin-bottom:14px">
+          <span style="flex:1;text-align:right;font-weight:700;font-size:13px">${teams[m.homeIdx]||''}</span>
+          <input type="number" id="res_h_${ri}_${mi}" min="0" value="${m.homeGoal??''}" 
+            style="width:52px;text-align:center;font-size:18px;font-weight:700;padding:6px;border:2px solid var(--blue);border-radius:6px">
+          <span style="font-size:18px;font-weight:700;color:var(--sub)">-</span>
+          <input type="number" id="res_a_${ri}_${mi}" min="0" value="${m.awayGoal??''}"
+            style="width:52px;text-align:center;font-size:18px;font-weight:700;padding:6px;border:2px solid var(--blue);border-radius:6px">
+          <span style="flex:1;font-weight:700;font-size:13px">${teams[m.awayIdx]||''}</span>
+        </div>
+
+        <!-- 得点者 -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px">⚽ 得点者</div>
+          <div id="scorer_area_${ri}_${mi}">
+          ${(m.scorers||[]).map((s,si)=>scorerRow(ri,mi,si,s)).join('')}
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addScorerRow(${ri},${mi})">＋ 得点者追加</button>
+        </div>
+
+        <!-- 警告退場 -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px">🟨 警告 / 🟥 退場</div>
+          <div id="booking_area_${ri}_${mi}">
+          ${[...(m.bookings||[]).map(b=>({...b,type:'Y'})),...(m.sendoffs||[]).map(s=>({...s,type:s.reason||'R'}))]
+            .map((b,bi)=>bookingRow(ri,mi,bi,b,teams[m.homeIdx],teams[m.awayIdx])).join('')}
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addBookingRow(${ri},${mi},'${teams[m.homeIdx].replace(/'/g,"\\'")}','${teams[m.awayIdx].replace(/'/g,"\\'")}')">＋ 追加</button>
+        </div>
+
+        <button class="btn btn-success btn-sm" onclick="saveMatchResult(${ri},${mi})">💾 この試合の結果を保存</button>
+      </div>
+    </div>`).join('');
+}
+
+function scorerRow(ri,mi,si,s){
+  return `<div class="form-grid" style="grid-template-columns:1fr 80px 80px auto;gap:6px;margin-bottom:6px;align-items:end" id="sr_${ri}_${mi}_${si}">
+    <div class="form-g"><input type="text" placeholder="選手名" value="${s?.name||''}" id="sc_name_${ri}_${mi}_${si}"></div>
+    <div class="form-g"><label style="font-size:10px">チーム</label>
+      <select id="sc_team_${ri}_${mi}_${si}">
+        <option value="0" ${(s?.teamIdx??0)===0?'selected':''}>ホーム</option>
+        <option value="1" ${(s?.teamIdx)===1?'selected':''}>アウェイ</option>
+      </select></div>
+    <div class="form-g"><label style="font-size:10px">得点数</label>
+      <input type="number" min="1" max="10" value="${s?.goals||1}" id="sc_goals_${ri}_${mi}_${si}"></div>
+    <button class="btn btn-ghost btn-sm" style="padding:6px 8px;align-self:flex-end" onclick="this.closest('[id^=sr_]').remove()">×</button>
+  </div>`;
+}
+
+function bookingRow(ri,mi,bi,b,hName,aName){
+  return `<div class="form-grid" style="grid-template-columns:1fr 100px 120px auto;gap:6px;margin-bottom:6px;align-items:end" id="br_${ri}_${mi}_${bi}">
+    <div class="form-g"><input type="text" placeholder="選手名" value="${b?.name||''}" id="bk_name_${ri}_${mi}_${bi}"></div>
+    <div class="form-g"><label style="font-size:10px">チーム</label>
+      <select id="bk_team_${ri}_${mi}_${bi}">
+        <option value="0" ${(b?.teamIdx??0)===0?'selected':''}>ホーム</option>
+        <option value="1" ${b?.teamIdx===1?'selected':''}>アウェイ</option>
+      </select></div>
+    <div class="form-g"><label style="font-size:10px">種別</label>
+      <select id="bk_type_${ri}_${mi}_${bi}">
+        <option value="Y" ${(b?.type||'Y')==='Y'?'selected':''}>🟨 警告</option>
+        <option value="R" ${b?.type==='R'?'selected':''}>🟥 退場</option>
+        <option value="2Y" ${b?.type==='2Y'?'selected':''}>🟨🟥 2枚退場</option>
+      </select></div>
+    <button class="btn btn-ghost btn-sm" style="padding:6px 8px;align-self:flex-end" onclick="this.closest('[id^=br_]').remove()">×</button>
+  </div>`;
+}
+
+let _scCount=100, _bkCount=100;
+function addScorerRow(ri,mi){
+  document.getElementById(`scorer_area_${ri}_${mi}`).insertAdjacentHTML('beforeend',scorerRow(ri,mi,_scCount++,null));
+}
+function addBookingRow(ri,mi,hName,aName){
+  document.getElementById(`booking_area_${ri}_${mi}`).insertAdjacentHTML('beforeend',bookingRow(ri,mi,_bkCount++,null,hName,aName));
+}
+
+function saveMatchResult(ri,mi){
+  const m=APP.rounds[ri].matches[mi];
+  const h=document.getElementById(`res_h_${ri}_${mi}`)?.value;
+  const a=document.getElementById(`res_a_${ri}_${mi}`)?.value;
+  if(h===''||a===''){ alert('スコアを入力してください'); return; }
+  m.homeGoal=parseInt(h); m.awayGoal=parseInt(a); m.status='done';
+
+  // 得点者
+  m.scorers=[];
+  document.querySelectorAll(`[id^="sr_${ri}_${mi}_"]`).forEach(row=>{
+    const id=row.id.split('_').slice(-1)[0];
+    const name=document.getElementById(`sc_name_${ri}_${mi}_${id}`)?.value?.trim();
+    if(name){
+      m.scorers.push({
+        name,
+        teamIdx:parseInt(document.getElementById(`sc_team_${ri}_${mi}_${id}`)?.value||0),
+        goals:parseInt(document.getElementById(`sc_goals_${ri}_${mi}_${id}`)?.value||1)
+      });
+    }
+  });
+
+  // 警告・退場
+  m.bookings=[]; m.sendoffs=[];
+  document.querySelectorAll(`[id^="br_${ri}_${mi}_"]`).forEach(row=>{
+    const id=row.id.split('_').slice(-1)[0];
+    const name=document.getElementById(`bk_name_${ri}_${mi}_${id}`)?.value?.trim();
+    if(name){
+      const type=document.getElementById(`bk_type_${ri}_${mi}_${id}`)?.value||'Y';
+      const teamIdx=parseInt(document.getElementById(`bk_team_${ri}_${mi}_${id}`)?.value||0);
+      if(type==='Y') m.bookings.push({name,teamIdx,type:'Y'});
+      else m.sendoffs.push({name,teamIdx,reason:type});
+    }
+  });
+
+  Storage.save(APP);
+  toast('✅ 結果を保存しました');
+  renderResultsForm();
+}
+
+// ─── STANDINGS ───────────────────────────────────
+function calcStandings(){
+  const n=APP.teams.length;
+  const st=Array.from({length:n},(_,i)=>({idx:i,name:APP.teams[i]||`T${i+1}`,gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0}));
+  APP.rounds.forEach(r=>{
+    r.matches.forEach(m=>{
+      if(m.status!=='done') return;
+      const h=st[m.homeIdx], a=st[m.awayIdx];
+      if(!h||!a) return;
+      h.gp++;a.gp++;
+      h.gf+=m.homeGoal;h.ga+=m.awayGoal;
+      a.gf+=m.awayGoal;a.ga+=m.homeGoal;
+      if(m.homeGoal>m.awayGoal){h.w++;h.pts+=3;a.l++;}
+      else if(m.homeGoal<m.awayGoal){a.w++;a.pts+=3;h.l++;}
+      else{h.d++;a.d++;h.pts++;a.pts++;}
+    });
+  });
+  return st.map(t=>({...t,gd:t.gf-t.ga}))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+}
+
+function renderStandings(){
+  if(!APP.teams.length){ document.getElementById('standingsBody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--sub)">チームを登録してください</td></tr>'; return; }
+  const rows=calcStandings();
+  const rankCls=['rank-gold','rank-silver','rank-bronze'];
+  document.getElementById('standingsTitle').textContent=
+    `${APP.meta.year}年度 ${APP.meta.term} ${APP.meta.leagueName} 順位表`;
+  document.getElementById('standingsBody').innerHTML=rows.map((t,i)=>`
+    <tr>
+      <td class="${rankCls[i]||''}">${i+1}</td>
+      <td style="font-weight:600">${t.name}</td>
+      <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
+      <td>${t.gf}</td><td>${t.ga}</td><td>${t.gd>=0?'+':''}${t.gd}</td>
+      <td class="pts-cell">${t.pts}</td>
+    </tr>`).join('');
+
+  // 勝敗表（総当たりマトリクス）
+  renderWDLTable(rows);
+}
+
+function renderWDLTable(sorted){
+  const n=APP.teams.length;
+  if(!n) return;
+  // 対戦結果マトリクス
+  const resultMatrix={};
+  APP.rounds.forEach(r=>{
+    r.matches.forEach(m=>{
+      if(m.status!=='done') return;
+      const key=`${m.homeIdx}_${m.awayIdx}`;
+      resultMatrix[key]={h:m.homeGoal,a:m.awayGoal};
+    });
+  });
+  const header=sorted.map(t=>`<th style="font-size:10px;min-width:60px">${t.name}</th>`).join('');
+  const rows=sorted.map(tr=>{
+    const cells=sorted.map(tc=>{
+      if(tr.idx===tc.idx) return '<td style="background:#e8f0ff">－</td>';
+      const r1=resultMatrix[`${tr.idx}_${tc.idx}`];
+      const r2=resultMatrix[`${tc.idx}_${tr.idx}`];
+      let cell='<td style="color:var(--sub)">-</td>';
+      if(r1){
+        const res=r1.h>r1.a?'○':r1.h<r1.a?'×':'△';
+        const cls=res==='○'?'color:var(--green);font-weight:700':res==='×'?'color:var(--accent);font-weight:700':'color:var(--gold);font-weight:700';
+        cell=`<td style="${cls}">${res}<br><span style="font-size:10px;font-weight:400;color:var(--sub)">${r1.h}-${r1.a}</span></td>`;
+      } else if(r2){
+        const res=r2.a>r2.h?'○':r2.a<r2.h?'×':'△';
+        const cls=res==='○'?'color:var(--green);font-weight:700':res==='×'?'color:var(--accent);font-weight:700':'color:var(--gold);font-weight:700';
+        cell=`<td style="${cls}">${res}<br><span style="font-size:10px;font-weight:400;color:var(--sub)">${r2.a}-${r2.h}</span></td>`;
+      }
+      return cell;
+    }).join('');
+    return `<tr><td style="font-weight:600;white-space:nowrap;padding:6px 10px">${tr.name}</td>${cells}</tr>`;
+  }).join('');
+  document.getElementById('wdlTableWrap').innerHTML=`
+    <table class="standings-table" style="font-size:11px">
+      <thead><tr><th style="text-align:left;padding-left:10px">チーム</th>${header}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--sub);margin-top:6px">○=勝 △=引分 ×=負（縦軸チームから見た結果）</div>`;
+}
+
+// ─── SCORERS ─────────────────────────────────────
+function renderScorers(){
+  const tally={};
+  APP.rounds.forEach(r=>{
+    r.matches.forEach(m=>{
+      if(m.status!=='done') return;
+      (m.scorers||[]).forEach(s=>{
+        const key=`${s.name}__${s.teamIdx}`;
+        if(!tally[key]) tally[key]={name:s.name,team:APP.teams[s.teamIdx+m.homeIdx]||'?',goals:0};
+        // teamIdx 0=home, 1=away
+        const teamName=s.teamIdx===0?APP.teams[m.homeIdx]:APP.teams[m.awayIdx];
+        tally[key].team=teamName||'?';
+        tally[key].goals+=s.goals||1;
+      });
+    });
+  });
+  const list=Object.values(tally).sort((a,b)=>b.goals-a.goals);
+  const medals=['🥇','🥈','🥉'];
+  if(!list.length){
+    document.getElementById('scorersBody').innerHTML='<div style="color:var(--sub);text-align:center;padding:40px">得点データがありません</div>';
+    return;
+  }
+  document.getElementById('scorersBody').innerHTML=list.map((s,i)=>`
+    <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #eef0f5;gap:14px">
+      <div style="font-size:20px;min-width:32px;text-align:center">${medals[i]||i+1}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${s.name}</div>
+        <div style="font-size:11px;color:var(--sub)">${s.team}</div>
+      </div>
+      <div style="font-size:24px;font-weight:700;color:var(--blue)">${s.goals}<span style="font-size:12px;font-weight:400;color:var(--sub)"> 得点</span></div>
+    </div>`).join('');
+}
+
+// ─── DISCIPLINE ──────────────────────────────────
+function renderDiscipline(){
+  const bookings=[], sendoffs=[], suspensions=[];
+  const bCount={}; // key=name__teamName, val=count
+
+  APP.rounds.forEach(r=>{
+    r.matches.forEach(m=>{
+      if(m.status!=='done') return;
+      const getRound=()=>`第${m.matchNo}試合(第${r.round}節)`;
+      const getTeam=(ti)=>ti===0?APP.teams[m.homeIdx]:APP.teams[m.awayIdx];
+
+      (m.bookings||[]).forEach(b=>{
+        const team=getTeam(b.teamIdx);
+        bookings.push({name:b.name,team,round:getRound(),type:'🟨 警告'});
+        const key=`${b.name}__${team}`;
+        bCount[key]=(bCount[key]||0)+1;
+        if(bCount[key]>=3){
+          // 3枚累積で次節停止
+          if(!suspensions.find(s=>s.name===b.name&&s.reason==='累積警告')){
+            suspensions.push({name:b.name,team,reason:'累積警告(3枚)',nextRound:`第${r.round+1}節`});
+          }
+        }
+      });
+      (m.sendoffs||[]).forEach(s=>{
+        const team=getTeam(s.teamIdx);
+        bookings.push({name:s.name,team,round:getRound(),type:s.reason==='2Y'?'🟨🟥 2枚退場':'🟥 退場'});
+        suspensions.push({name:s.name,team,reason:s.reason==='2Y'?'2枚目警告退場':'直接退場',nextRound:`第${r.round+1}節`});
+      });
+    });
+  });
+
+  document.getElementById('bookingBody').innerHTML=bookings.map(b=>`
+    <tr><td style="font-weight:600">${b.name}</td><td>${b.team}</td><td>${b.round}</td>
+    <td>${b.type}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--sub)">記録なし</td></tr>';
+
+  document.getElementById('suspBody').innerHTML=suspensions.map(s=>`
+    <tr><td style="font-weight:600">${s.name}</td><td>${s.team}</td>
+    <td>${s.reason}</td><td style="color:var(--accent);font-weight:700">${s.nextRound}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--sub)">出場停止者なし</td></tr>';
+}
+
+// ─── EXCEL EXPORT ────────────────────────────────
+function exportComboExcel(){
+  if(!APP.rounds.length){ alert('日程を生成してください'); return; }
+  const wb=XLSX.utils.book_new();
+  const title=`${APP.meta.year}年度 ${APP.meta.term} ${APP.meta.leagueName}`;
+
+  // シート①: 組み合わせ表
+  const comboData=[[title+' 組み合わせ表'],[],
+    ['節','試合番号','ホームチーム','','アウェイチーム','試合日','会場']
+  ];
+  APP.rounds.forEach(r=>{
+    r.matches.forEach((m,mi)=>{
+      comboData.push([
+        mi===0?`第${r.round}節`:'',
+        `第${m.matchNo}試合`,
+        APP.teams[m.homeIdx]||'',
+        '対',
+        APP.teams[m.awayIdx]||'',
+        mi===0?(r.date?fmtDate(r.date):''):'',
+        mi===0?(r.venue||''):''
+      ]);
+    });
+    comboData.push([]);
+  });
+  const comboWS=XLSX.utils.aoa_to_sheet(comboData);
+  comboWS['!cols']=[{wch:10},{wch:12},{wch:18},{wch:4},{wch:18},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,comboWS,'組み合わせ表');
+
+  // シート②: チーム一覧
+  const teamData=[['チーム一覧'],['番号','チーム名'],...APP.teams.map((t,i)=>[`${i+1}`,t])];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(teamData),'チーム一覧');
+
+  XLSX.writeFile(wb, `${APP.meta.year}${APP.meta.term}_${APP.meta.leagueName}_組み合わせ表.xlsx`);
+  toast('📊 組み合わせ表をExcel出力しました');
+}
+
+function exportScheduleExcel(){
+  if(!APP.rounds.length){ alert('日程を生成してください'); return; }
+  const wb=XLSX.utils.book_new();
+  const title=`${APP.meta.year}年度 ${APP.meta.term} ${APP.meta.leagueName}`;
+
+  // 試合日程表シート（公式様式準拠）
+  const data=[
+    ['山梨県ユース（U15）サッカーリーグ'],
+    [APP.meta.year+'年度','','','','','',APP.meta.term,'','','','','グループ日程表'],
+    []
+  ];
+
+  APP.rounds.forEach(r=>{
+    data.push([`■ 第${r.round}節`, '',
+      r.date?fmtDate(r.date)+'（'+getDayName(r.date)+'）':'　　月　　日（　）']);
+    data.push(['','','','◇会場：'+( r.venue||''),'','','','','','','','','会場責任者：'+(r.venueManager||'')]);
+    data.push(['','キックオフ','','リーグ','','チーム名','','','','対戦','','チーム名','主審','副審','副審']);
+
+    const koBase=r.kickoff||'10:00';
+    const [kh,km]=koBase.split(':').map(Number);
+    r.matches.forEach((m,mi)=>{
+      const mins=kh*60+km+mi*95;
+      const ko=`${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+      const result=m.status==='done'?`${m.homeGoal} - ${m.awayGoal}`:'';
+      data.push([`${mi+1}`,ko,'',APP.meta.leagueName,'',APP.teams[m.homeIdx]||'','','','',
+        m.status==='done'?result:'vs','',APP.teams[m.awayIdx]||'',
+        mi===0?r.referee1||'':'',mi===0?r.referee2||'':'','']);
+    });
+    data.push([]);
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:4},{wch:10},{wch:4},{wch:16},{wch:4},{wch:20},{wch:4},{wch:4},{wch:4},{wch:8},{wch:4},{wch:20},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'試合日程表');
+
+  // 結果シート
+  const resData=[['試合結果一覧'],['節','試合','日付','ホーム','スコア','アウェイ','会場']];
+  APP.rounds.forEach(r=>{
+    r.matches.forEach(m=>{
+      resData.push([
+        `第${r.round}節`,`第${m.matchNo}試合`,r.date?fmtDate(r.date):'',
+        APP.teams[m.homeIdx]||'',
+        m.status==='done'?`${m.homeGoal}-${m.awayGoal}`:'未定',
+        APP.teams[m.awayIdx]||'',r.venue||''
+      ]);
+    });
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resData),'試合結果');
+
+  // 順位表シート
+  const st=calcStandings();
+  const stData=[[`${APP.meta.year}年度 ${APP.meta.term} ${APP.meta.leagueName} 順位表`],[],
+    ['順位','チーム名','試合数','勝','分','敗','得点','失点','得失点差','勝点'],
+    ...st.map((t,i)=>[i+1,t.name,t.gp,t.w,t.d,t.l,t.gf,t.ga,t.gd,t.pts])
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(stData),'順位表');
+
+  XLSX.writeFile(wb, `${APP.meta.year}${APP.meta.term}_${APP.meta.leagueName}_試合日程表.xlsx`);
+  toast('📊 試合日程表をExcel出力しました');
+}
+
+function exportStandingsExcel(){
+  const wb=XLSX.utils.book_new();
+  const st=calcStandings();
+  const data=[[`${APP.meta.year}年度 ${APP.meta.term} ${APP.meta.leagueName} 順位表`],[],
+    ['順位','チーム名','試合数','勝','分','敗','得点','失点','得失点差','勝点'],
+    ...st.map((t,i)=>[i+1,t.name,t.gp,t.w,t.d,t.l,t.gf,t.ga,t.gd,t.pts])
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:6},{wch:20},{wch:8},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10},{wch:6}];
+  XLSX.utils.book_append_sheet(wb,ws,'順位表');
+
+  // 得点ランキング
+  const tally={};
+  APP.rounds.forEach(r=>{r.matches.forEach(m=>{
+    if(m.status!=='done') return;
+    (m.scorers||[]).forEach(s=>{
+      const team=s.teamIdx===0?APP.teams[m.homeIdx]:APP.teams[m.awayIdx];
+      const key=s.name+'_'+team;
+      if(!tally[key]) tally[key]={name:s.name,team,goals:0};
+      tally[key].goals+=s.goals||1;
+    });
+  });});
+  const scorers=Object.values(tally).sort((a,b)=>b.goals-a.goals);
+  const srData=[['得点ランキング'],['順位','選手名','チーム','得点数'],
+    ...scorers.map((s,i)=>[i+1,s.name,s.team,s.goals])];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(srData),'得点ランキング');
+
+  XLSX.writeFile(wb, `${APP.meta.year}${APP.meta.term}_${APP.meta.leagueName}_順位表.xlsx`);
+  toast('📊 順位表をExcel出力しました');
+}
+
+// ─── UTILS ───────────────────────────────────────
+function fmtDate(s){
+  if(!s) return '';
+  const d=new Date(s);
+  if(isNaN(d)) return s;
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+function getDayName(s){
+  const d=new Date(s);
+  return isNaN(d)?'':['日','月','火','水','木','金','土'][d.getDay()];
+}
+
+function autoRenderAll(){
+  renderComboTable();
+  renderScheduleTable();
+  renderStandings();
+  renderResultRoundSel();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>山梨県U15リーグ | 3種委員会</title>
+<style>
+  :root {
+    --jfa-blue: #003087;
+    --jfa-blue-dark: #001f5c;
+    --jfa-blue-light: #0050c8;
+    --accent: #e8001e;
+    --gold: #c8a000;
+    --bg: #f5f6f8;
+    --white: #ffffff;
+    --text: #1a1a2e;
+    --text-sub: #555577;
+    --border: #d0d4e0;
+    --card: #ffffff;
+    --nav-h: 60px;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0,48,135,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  /* NAV */
+  .nav { background: var(--jfa-blue); position: sticky; top: 0; z-index: 100; height: var(--nav-h); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .nav-brand { color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; }
+  .nav-brand span { display: block; font-size: 10px; font-weight: 400; opacity: 0.75; letter-spacing: 0.05em; }
+  .nav-admin { color: rgba(255,255,255,0.6); font-size: 11px; text-decoration: none; border: 1px solid rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 4px; }
+  .nav-admin:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* TABS */
+  .tab-bar { background: var(--jfa-blue-dark); display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn { flex: none; color: rgba(255,255,255,0.65); font-size: 12px; padding: 10px 16px; border: none; background: none; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; }
+  .tab-btn.active { color: #fff; border-bottom-color: var(--accent); font-weight: 700; }
+  .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+  /* LEAGUE SELECTOR */
+  .league-bar { background: #fff; border-bottom: 2px solid var(--border); display: flex; overflow-x: auto; padding: 0 12px; gap: 4px; scrollbar-width: none; }
+  .league-bar::-webkit-scrollbar { display: none; }
+  .league-chip { flex: none; padding: 8px 16px; font-size: 12px; font-weight: 600; border: none; background: none; cursor: pointer; color: var(--text-sub); border-bottom: 3px solid transparent; transition: all 0.15s; }
+  .league-chip.active { color: var(--jfa-blue); border-bottom-color: var(--jfa-blue); }
+
+  /* MAIN */
+  .main { max-width: 900px; margin: 0 auto; padding: 16px 12px 80px; }
+
+  /* SECTION */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* CARD */
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden; }
+  .card-head { background: var(--jfa-blue); color: #fff; padding: 10px 16px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .card-head .icon { font-size: 16px; }
+  .card-body { padding: 0; }
+
+  /* STANDINGS TABLE */
+  .standings-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .standings-table th { background: #f0f3fa; color: var(--jfa-blue); font-size: 11px; font-weight: 700; padding: 8px 6px; text-align: center; border-bottom: 2px solid var(--border); position: sticky; top: 0; }
+  .standings-table th:first-child { text-align: left; padding-left: 12px; }
+  .standings-table td { padding: 10px 6px; text-align: center; border-bottom: 1px solid #eef0f5; }
+  .standings-table td:first-child { text-align: left; padding-left: 12px; font-weight: 600; }
+  .standings-table tr:last-child td { border-bottom: none; }
+  .standings-table tr:hover td { background: #f8f9fc; }
+  .standings-table .rank { width: 28px; font-weight: 700; color: var(--text-sub); font-size: 13px; }
+  .standings-table .pts { font-weight: 700; color: var(--jfa-blue); font-size: 14px; }
+  .rank-1 { color: var(--gold) !important; }
+  .rank-2 { color: #888 !important; }
+  .rank-3 { color: #a06030 !important; }
+
+  /* MATCH LIST */
+  .match-item { padding: 12px 16px; border-bottom: 1px solid #eef0f5; display: flex; align-items: center; gap: 8px; }
+  .match-item:last-child { border-bottom: none; }
+  .match-date { font-size: 11px; color: var(--text-sub); min-width: 70px; }
+  .match-teams { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; }
+  .match-team { flex: 1; font-weight: 600; }
+  .match-team.home { text-align: right; }
+  .match-team.away { text-align: left; }
+  .match-score { background: var(--jfa-blue); color: #fff; font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 4px; min-width: 52px; text-align: center; }
+  .match-score.upcoming { background: var(--border); color: var(--text-sub); font-size: 11px; font-weight: 400; }
+  .match-venue { font-size: 10px; color: var(--text-sub); white-space: nowrap; }
+
+  /* SCORERS */
+  .scorer-item { padding: 10px 16px; border-bottom: 1px solid #eef0f5; display: flex; align-items: center; gap: 12px; }
+  .scorer-item:last-child { border-bottom: none; }
+  .scorer-rank { font-size: 20px; font-weight: 700; color: var(--border); min-width: 32px; text-align: center; }
+  .scorer-info { flex: 1; }
+  .scorer-name { font-weight: 700; font-size: 13px; }
+  .scorer-team { font-size: 11px; color: var(--text-sub); }
+  .scorer-goals { font-size: 22px; font-weight: 700; color: var(--jfa-blue); min-width: 36px; text-align: right; }
+  .scorer-goals span { font-size: 11px; font-weight: 400; color: var(--text-sub); }
+
+  /* NOTICE */
+  .notice-item { padding: 14px 16px; border-bottom: 1px solid #eef0f5; }
+  .notice-item:last-child { border-bottom: none; }
+  .notice-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-right: 8px; }
+  .tag-info { background: #e8f0ff; color: var(--jfa-blue); }
+  .tag-important { background: #ffe8ea; color: var(--accent); }
+  .tag-doc { background: #e8fff0; color: #006630; }
+  .notice-title { font-size: 13px; font-weight: 600; margin-top: 4px; }
+  .notice-date { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+  .notice-body { font-size: 12px; color: var(--text-sub); margin-top: 6px; line-height: 1.6; }
+
+  /* SUSPENSION */
+  .suspension-item { padding: 10px 16px; border-bottom: 1px solid #eef0f5; display: flex; align-items: center; gap: 12px; }
+  .suspension-item:last-child { border-bottom: none; }
+  .sus-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .sus-info { flex: 1; }
+  .sus-name { font-weight: 600; font-size: 13px; }
+  .sus-detail { font-size: 11px; color: var(--text-sub); }
+  .sus-game { font-size: 11px; color: var(--accent); font-weight: 600; text-align: right; }
+
+  /* FLOW BANNER */
+  .flow-banner { background: linear-gradient(135deg, var(--jfa-blue) 0%, var(--jfa-blue-light) 100%); color: #fff; border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .flow-title { font-size: 11px; font-weight: 700; opacity: 0.7; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .flow-steps { display: flex; overflow-x: auto; gap: 0; scrollbar-width: none; }
+  .flow-steps::-webkit-scrollbar { display: none; }
+  .flow-step { flex: none; display: flex; align-items: center; font-size: 11px; }
+  .flow-step-inner { background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 4px; white-space: nowrap; font-weight: 600; }
+  .flow-step-inner.current { background: var(--accent); }
+  .flow-arrow { opacity: 0.4; padding: 0 4px; font-size: 14px; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 40px 16px; color: var(--text-sub); }
+  .empty .e-icon { font-size: 36px; margin-bottom: 8px; }
+  .empty p { font-size: 13px; }
+
+  /* STAT PILLS */
+  .stat-row { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #eef0f5; flex-wrap: wrap; }
+  .stat-pill { background: #f0f3fa; border-radius: 4px; padding: 4px 10px; font-size: 11px; color: var(--text-sub); }
+  .stat-pill strong { color: var(--jfa-blue); }
+
+  /* FOOTER */
+  .footer { text-align: center; padding: 16px; font-size: 11px; color: var(--text-sub); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    山梨県サッカー協会<br>
+    <span>3種委員会 リーグ運営システム</span>
+  </div>
+  <a href="admin.html" class="nav-admin">管理画面 →</a>
+</nav>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showSection('schedule')">📅 日程・結果</button>
+  <button class="tab-btn" onclick="showSection('standings')">🏆 順位表</button>
+  <button class="tab-btn" onclick="showSection('scorers')">⚽ 得点ランキング</button>
+  <button class="tab-btn" onclick="showSection('suspensions')">🟥 出場停止</button>
+  <button class="tab-btn" onclick="showSection('notices')">📢 お知らせ</button>
+</div>
+
+<div class="league-bar" id="leagueBar"></div>
+
+<div class="main">
+
+  <!-- 運営フロー -->
+  <div class="flow-banner">
+    <div class="flow-title">▶ 2024年度 運営フロー</div>
+    <div class="flow-steps" id="flowSteps"></div>
+  </div>
+
+  <!-- 日程・結果 -->
+  <div class="section active" id="sec-schedule">
+    <div class="card">
+      <div class="card-head"><span class="icon">📅</span>直近の試合</div>
+      <div class="card-body" id="matchList"></div>
+    </div>
+  </div>
+
+  <!-- 順位表 -->
+  <div class="section" id="sec-standings">
+    <div class="card">
+      <div class="card-head"><span class="icon">🏆</span>順位表</div>
+      <div class="card-body" style="overflow-x:auto;">
+        <table class="standings-table" id="standingsTable">
+          <thead>
+            <tr>
+              <th class="rank">#</th>
+              <th style="text-align:left;padding-left:12px;">チーム</th>
+              <th>試</th><th>勝</th><th>分</th><th>敗</th>
+              <th>得</th><th>失</th><th>差</th>
+              <th class="pts">点</th>
+            </tr>
+          </thead>
+          <tbody id="standingsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 得点ランキング -->
+  <div class="section" id="sec-scorers">
+    <div class="card">
+      <div class="card-head"><span class="icon">⚽</span>得点ランキング</div>
+      <div class="card-body" id="scorerList"></div>
+    </div>
+  </div>
+
+  <!-- 出場停止 -->
+  <div class="section" id="sec-suspensions">
+    <div class="card">
+      <div class="card-head"><span class="icon">🟥</span>出場停止選手</div>
+      <div class="card-body" id="suspensionList"></div>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <div class="card-head"><span class="icon">🟨</span>警告累積状況</div>
+      <div class="card-body" id="bookingList"></div>
+    </div>
+  </div>
+
+  <!-- お知らせ -->
+  <div class="section" id="sec-notices">
+    <div class="card">
+      <div class="card-head"><span class="icon">📢</span>委員会からのお知らせ</div>
+      <div class="card-body" id="noticeList"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">山梨県サッカー協会 第3種委員会 © 2024</div>
+
+<script>
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+const API_KEY = '$2a$10$DEMO_KEY_REPLACE_WITH_REAL'; // デモ用
+const BIN_ID = 'REPLACE_WITH_BIN_ID'; // デモ用
+
+// ===== SAMPLE DATA =====
+let DB = {
+  leagues: [
+    { id:'u15a', name:'U15 Aリーグ' },
+    { id:'u15b', name:'U15 Bリーグ' },
+    { id:'u15c', name:'U15 Cリーグ' },
+    { id:'u15d', name:'U15 Dリーグ' }
+  ],
+  teams: [
+    { id:'t1', name:'GRANDE FC', short:'GRANDE', rep:'山田太郎', coach:'鈴木一郎', tel:'090-1234-5678', venue:'白州総合グラウンド', league:'u15a' },
+    { id:'t2', name:'FCラーゴ河口湖', short:'ラーゴ', rep:'田中次郎', coach:'佐藤三郎', tel:'090-2345-6789', venue:'河口湖スポーツセンター', league:'u15a' },
+    { id:'t3', name:'エルドラードFC', short:'エルドラ', rep:'伊藤四郎', coach:'高橋五郎', tel:'090-3456-7890', venue:'竜王スポーツパーク', league:'u15a' },
+    { id:'t4', name:'FC ZONA', short:'ZONA', rep:'渡辺六郎', coach:'中村七郎', tel:'090-4567-8901', venue:'甲府市総合市民会館', league:'u15a' },
+    { id:'t5', name:'ヴァンフォーレ甲府U15', short:'VFK', rep:'小林八郎', coach:'加藤九郎', tel:'090-5678-9012', venue:'小瀬スポーツ公園', league:'u15b' },
+    { id:'t6', name:'韮崎FC', short:'韮崎', rep:'吉田十郎', coach:'山本一太', tel:'090-6789-0123', venue:'韮崎中央公園', league:'u15b' },
+  ],
+  players: [
+    // GRANDE FC
+    { id:'p1', teamId:'t1', num:1, name:'鈴木 大翔', kana:'スズキ ヒロト', grade:3, pos:'GK', protected:true },
+    { id:'p2', teamId:'t1', num:5, name:'田中 蓮', kana:'タナカ レン', grade:3, pos:'DF', protected:true },
+    { id:'p3', teamId:'t1', num:7, name:'伊藤 颯', kana:'イトウ ソウ', grade:2, pos:'MF', protected:true },
+    { id:'p4', teamId:'t1', num:9, name:'高橋 悠馬', kana:'タカハシ ユウマ', grade:3, pos:'FW', protected:true },
+    { id:'p5', teamId:'t1', num:10, name:'渡辺 海斗', kana:'ワタナベ カイト', grade:3, pos:'FW', protected:true },
+    { id:'p6', teamId:'t1', num:11, name:'山田 蒼空', kana:'ヤマダ ソラ', grade:2, pos:'MF', protected:false },
+    { id:'p7', teamId:'t1', num:3, name:'中村 陽向', kana:'ナカムラ ヒナタ', grade:2, pos:'DF', protected:false },
+    // FCラーゴ
+    { id:'p8', teamId:'t2', num:10, name:'小林 大和', kana:'コバヤシ ヤマト', grade:3, pos:'FW', protected:true },
+    { id:'p9', teamId:'t2', num:9, name:'加藤 龍聖', kana:'カトウ リュウセイ', grade:3, pos:'FW', protected:true },
+    { id:'p10', teamId:'t2', num:7, name:'吉田 海', kana:'ヨシダ カイ', grade:2, pos:'MF', protected:false },
+    { id:'p11', teamId:'t2', num:1, name:'山本 爽', kana:'ヤマモト ソウ', grade:3, pos:'GK', protected:true },
+    // エルドラード
+    { id:'p12', teamId:'t3', num:11, name:'佐藤 颯真', kana:'サトウ ソウマ', grade:3, pos:'FW', protected:true },
+    { id:'p13', teamId:'t3', num:8, name:'山口 大輝', kana:'ヤマグチ タイキ', grade:2, pos:'MF', protected:false },
+    { id:'p14', teamId:'t3', num:3, name:'松本 瑛太', kana:'マツモト エイタ', grade:3, pos:'DF', protected:true },
+    // FC ZONA
+    { id:'p15', teamId:'t4', num:9, name:'井上 光', kana:'イノウエ ヒカル', grade:3, pos:'FW', protected:true },
+    { id:'p16', teamId:'t4', num:10, name:'木村 勇斗', kana:'キムラ ユウト', grade:2, pos:'MF', protected:true },
+    { id:'p17', teamId:'t4', num:4, name:'林 一輝', kana:'ハヤシ カズキ', grade:3, pos:'DF', protected:false },
+  ],
+  matches: [
+    { id:'m1', league:'u15a', date:'2024-04-14', time:'10:00', venue:'白州総合グラウンド', home:'t1', away:'t2', homeGoal:3, awayGoal:1, status:'done', scorers:[
+      { playerId:'p5', teamId:'t1', count:2 },
+      { playerId:'p4', teamId:'t1', count:1 },
+      { playerId:'p8', teamId:'t2', count:1 }
+    ], bookings:[
+      { playerId:'p7', teamId:'t1', type:'Y' }
+    ], sendoffs:[] },
+    { id:'m2', league:'u15a', date:'2024-04-14', time:'12:00', venue:'竜王スポーツパーク', home:'t3', away:'t4', homeGoal:1, awayGoal:2, status:'done', scorers:[
+      { playerId:'p12', teamId:'t3', count:1 },
+      { playerId:'p15', teamId:'t4', count:1 },
+      { playerId:'p16', teamId:'t4', count:1 }
+    ], bookings:[
+      { playerId:'p13', teamId:'t3', type:'Y' },
+      { playerId:'p17', teamId:'t4', type:'Y' }
+    ], sendoffs:[] },
+    { id:'m3', league:'u15a', date:'2024-05-12', time:'10:00', venue:'河口湖スポーツセンター', home:'t2', away:'t3', homeGoal:0, awayGoal:0, status:'done', scorers:[], bookings:[], sendoffs:[] },
+    { id:'m4', league:'u15a', date:'2024-05-12', time:'12:00', venue:'甲府市総合市民会館', home:'t4', away:'t1', homeGoal:1, awayGoal:4, status:'done', scorers:[
+      { playerId:'p15', teamId:'t4', count:1 },
+      { playerId:'p5', teamId:'t1', count:2 },
+      { playerId:'p6', teamId:'t1', count:1 },
+      { playerId:'p4', teamId:'t1', count:1 }
+    ], bookings:[
+      { playerId:'p16', teamId:'t4', type:'Y' },
+      { playerId:'p16', teamId:'t4', type:'Y2' } // 2枚目警告→退場
+    ], sendoffs:[{ playerId:'p16', teamId:'t4', reason:'2Y' }] },
+    { id:'m5', league:'u15a', date:'2024-06-09', time:'10:00', venue:'白州総合グラウンド', home:'t1', away:'t3', status:'upcoming' },
+    { id:'m6', league:'u15a', date:'2024-06-09', time:'12:00', venue:'河口湖スポーツセンター', home:'t2', away:'t4', status:'upcoming' },
+    { id:'m7', league:'u15a', date:'2024-07-14', time:'10:00', venue:'竜王スポーツパーク', home:'t3', away:'t1', status:'upcoming' },
+    { id:'m8', league:'u15a', date:'2024-07-14', time:'12:00', venue:'甲府市総合市民会館', home:'t4', away:'t2', status:'upcoming' },
+  ],
+  notices: [
+    { id:'n1', date:'2024-06-01', title:'第1回リーグ委員会 議事録について', tag:'doc', body:'先日開催された第1回委員会の議事録を掲載します。各チーム代表者はご確認ください。' },
+    { id:'n2', date:'2024-05-20', title:'【重要】メンバー表提出期限について', tag:'important', body:'2024年度リーグ戦のメンバー表提出期限は2024年6月30日（日）となっています。期限厳守でお願いします。' },
+    { id:'n3', date:'2024-05-10', title:'2024年度 U15リーグ戦 要項', tag:'doc', body:'2024年度山梨県U15サッカーリーグ戦の大会要項を掲載しました。下記よりご確認ください。' },
+    { id:'n4', date:'2024-04-25', title:'ユニフォーム規程の変更について', tag:'info', body:'JFA規程改定に伴い、ユニフォームの広告表示に関する規定が変更されました。詳細は添付の通知をご覧ください。' },
+  ],
+  flow: [
+    { label:'総会・要項確定', done:true },
+    { label:'チーム登録', done:true },
+    { label:'選手登録', done:true },
+    { label:'メンバー表提出', done:false, current:true },
+    { label:'リーグ開幕', done:false },
+    { label:'結果入力', done:false },
+    { label:'順位確定', done:false },
+    { label:'得点王確定', done:false },
+  ]
+};
+
+let currentLeague = 'u15a';
+let currentSection = 'schedule';
+
+// ===== INIT =====
+function init() {
+  renderLeagueTabs();
+  renderFlow();
+  render();
+}
+
+function renderLeagueTabs() {
+  const bar = document.getElementById('leagueBar');
+  bar.innerHTML = DB.leagues.map(l => `
+    <button class="league-chip ${l.id===currentLeague?'active':''}" onclick="setLeague('${l.id}')">${l.name}</button>
+  `).join('');
+}
+
+function setLeague(id) {
+  currentLeague = id;
+  renderLeagueTabs();
+  render();
+}
+
+function renderFlow() {
+  const el = document.getElementById('flowSteps');
+  el.innerHTML = DB.flow.map((s,i) => `
+    <div class="flow-step">
+      ${i>0?'<span class="flow-arrow">›</span>':''}
+      <div class="flow-step-inner ${s.current?'current':''}">${s.done?'✓ ':s.current?'● ':''}${s.label}</div>
+    </div>
+  `).join('');
+}
+
+function showSection(name) {
+  currentSection = name;
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  render();
+}
+
+function render() {
+  if(currentSection==='schedule') renderSchedule();
+  if(currentSection==='standings') renderStandings();
+  if(currentSection==='scorers') renderScorers();
+  if(currentSection==='suspensions') renderSuspensions();
+  if(currentSection==='notices') renderNotices();
+}
+
+// ===== SCHEDULE =====
+function renderSchedule() {
+  const matches = DB.matches.filter(m=>m.league===currentLeague).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!matches.length){ document.getElementById('matchList').innerHTML='<div class="empty"><div class="e-icon">📅</div><p>試合が登録されていません</p></div>'; return; }
+  
+  let html=''; let lastDate='';
+  matches.forEach(m=>{
+    const home = DB.teams.find(t=>t.id===m.home);
+    const away = DB.teams.find(t=>t.id===m.away);
+    if(!home||!away) return;
+    const d = new Date(m.date);
+    const dateStr = `${d.getMonth()+1}/${d.getDate()}（${'日月火水木金土'.split('')[d.getDay()]}）`;
+    if(m.date!==lastDate){
+      if(lastDate) html+=`</div>`;
+      html+=`<div style="background:#f7f8fc;padding:6px 16px;font-size:11px;font-weight:700;color:var(--text-sub);border-bottom:1px solid #eef0f5;">${dateStr}</div><div>`;
+      lastDate=m.date;
+    }
+    const score = m.status==='done'
+      ? `<div class="match-score">${m.homeGoal} - ${m.awayGoal}</div>`
+      : `<div class="match-score upcoming">${m.time||'TBD'}</div>`;
+    html+=`
+      <div class="match-item">
+        <div class="match-teams">
+          <div class="match-team home">${home.short}</div>
+          ${score}
+          <div class="match-team away">${away.short}</div>
+        </div>
+        <div class="match-venue">📍${m.venue||''}</div>
+      </div>
+    `;
+  });
+  if(lastDate) html+=`</div>`;
+  document.getElementById('matchList').innerHTML=html;
+}
+
+// ===== STANDINGS =====
+function calcStandings(leagueId) {
+  const leagueTeams = DB.teams.filter(t=>t.league===leagueId);
+  const matches = DB.matches.filter(m=>m.league===leagueId && m.status==='done');
+  const stats = {};
+  leagueTeams.forEach(t=>{ stats[t.id]={gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0}; });
+  matches.forEach(m=>{
+    if(!stats[m.home]||!stats[m.away]) return;
+    const h=stats[m.home], a=stats[m.away];
+    h.gp++; a.gp++;
+    h.gf+=m.homeGoal; h.ga+=m.awayGoal;
+    a.gf+=m.awayGoal; a.ga+=m.homeGoal;
+    if(m.homeGoal>m.awayGoal){ h.w++; h.pts+=3; a.l++; }
+    else if(m.homeGoal<m.awayGoal){ a.w++; a.pts+=3; h.l++; }
+    else { h.d++; a.d++; h.pts++; a.pts++; }
+  });
+  return leagueTeams.map(t=>({...t,...stats[t.id],gd:(stats[t.id]?.gf||0)-(stats[t.id]?.ga||0)}))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+}
+
+function renderStandings() {
+  const rows = calcStandings(currentLeague);
+  if(!rows.length){ document.getElementById('standingsBody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-sub);">チームが登録されていません</td></tr>'; return; }
+  const rankClass = ['rank-1','rank-2','rank-3'];
+  document.getElementById('standingsBody').innerHTML = rows.map((t,i)=>`
+    <tr>
+      <td class="rank ${rankClass[i]||''}">${i+1}</td>
+      <td style="font-weight:600;">${t.name}</td>
+      <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
+      <td>${t.gf}</td><td>${t.ga}</td><td>${t.gd>=0?'+':''}${t.gd}</td>
+      <td class="pts">${t.pts}</td>
+    </tr>
+  `).join('');
+}
+
+// ===== SCORERS =====
+function renderScorers() {
+  const leagueMatches = DB.matches.filter(m=>m.league===currentLeague && m.status==='done');
+  const tally = {};
+  leagueMatches.forEach(m=>{
+    (m.scorers||[]).forEach(s=>{
+      if(!tally[s.playerId]) tally[s.playerId]={goals:0,teamId:s.teamId};
+      tally[s.playerId].goals+=s.count||1;
+    });
+  });
+  const list = Object.entries(tally).map(([pid,v])=>{
+    const p=DB.players.find(x=>x.id===pid);
+    const t=DB.teams.find(x=>x.id===v.teamId);
+    return {name:p?.name||'?',team:t?.short||'?',goals:v.goals};
+  }).sort((a,b)=>b.goals-a.goals);
+
+  if(!list.length){ document.getElementById('scorerList').innerHTML='<div class="empty"><div class="e-icon">⚽</div><p>得点データがありません</p></div>'; return; }
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('scorerList').innerHTML = list.map((s,i)=>`
+    <div class="scorer-item">
+      <div class="scorer-rank">${medals[i]||i+1}</div>
+      <div class="scorer-info">
+        <div class="scorer-name">${s.name}</div>
+        <div class="scorer-team">${s.team}</div>
+      </div>
+      <div class="scorer-goals">${s.goals}<span>得点</span></div>
+    </div>
+  `).join('');
+}
+
+// ===== SUSPENSIONS =====
+function renderSuspensions() {
+  // 退場者 → 次節出場停止
+  const leagueMatches = DB.matches.filter(m=>m.league===currentLeague && m.status==='done');
+  const sendoffs = [];
+  const bookingCount = {};
+
+  leagueMatches.forEach(m=>{
+    (m.sendoffs||[]).forEach(s=>{
+      const p=DB.players.find(x=>x.id===s.playerId);
+      const t=DB.teams.find(x=>x.id===s.teamId);
+      sendoffs.push({name:p?.name||'?',team:t?.short||'?',reason:s.reason,games:1});
+    });
+    (m.bookings||[]).forEach(b=>{
+      if(b.type==='Y'){
+        if(!bookingCount[b.playerId]) bookingCount[b.playerId]={count:0,teamId:b.teamId};
+        bookingCount[b.playerId].count++;
+      }
+    });
+  });
+
+  let susHtml='';
+  if(sendoffs.length){
+    susHtml = sendoffs.map(s=>`
+      <div class="suspension-item">
+        <div class="sus-badge">出場停止</div>
+        <div class="sus-info">
+          <div class="sus-name">${s.name}</div>
+          <div class="sus-detail">${s.team} ／ ${s.reason==='2Y'?'2枚目警告による退場':'直接退場'}</div>
+        </div>
+        <div class="sus-game">${s.games}試合停止</div>
+      </div>
+    `).join('');
+  } else {
+    susHtml = '<div class="empty"><div class="e-icon">✅</div><p>出場停止選手はいません</p></div>';
+  }
+  document.getElementById('suspensionList').innerHTML=susHtml;
+
+  // 警告累積
+  const accumulated = Object.entries(bookingCount).filter(([pid,v])=>v.count>=2);
+  let bookHtml='';
+  if(accumulated.length){
+    bookHtml=accumulated.map(([pid,v])=>{
+      const p=DB.players.find(x=>x.id===pid);
+      const t=DB.teams.find(x=>x.id===v.teamId);
+      return `
+        <div class="suspension-item">
+          <div class="sus-badge" style="background:var(--gold);">警告累積</div>
+          <div class="sus-info">
+            <div class="sus-name">${p?.name||'?'}</div>
+            <div class="sus-detail">${t?.short||'?'} ／ 累積${v.count}枚</div>
+          </div>
+          <div class="sus-game" style="color:var(--gold);">注意</div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    const allBookings = Object.entries(bookingCount);
+    if(allBookings.length){
+      bookHtml=allBookings.map(([pid,v])=>{
+        const p=DB.players.find(x=>x.id===pid);
+        const t=DB.teams.find(x=>x.id===v.teamId);
+        return `
+          <div class="suspension-item">
+            <div class="sus-badge" style="background:#f0f3fa;color:var(--text-sub);">🟨 ${v.count}枚</div>
+            <div class="sus-info">
+              <div class="sus-name">${p?.name||'?'}</div>
+              <div class="sus-detail">${t?.short||'?'}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      bookHtml='<div class="empty"><div class="e-icon">🟨</div><p>警告選手はいません</p></div>';
+    }
+  }
+  document.getElementById('bookingList').innerHTML=bookHtml;
+}
+
+// ===== NOTICES =====
+function renderNotices() {
+  const tagMap={info:'tag-info',important:'tag-important',doc:'tag-doc'};
+  const tagLabel={info:'お知らせ',important:'重要',doc:'要項・通達'};
+  document.getElementById('noticeList').innerHTML = DB.notices.map(n=>`
+    <div class="notice-item">
+      <span class="notice-tag ${tagMap[n.tag]||'tag-info'}">${tagLabel[n.tag]||'お知らせ'}</span>
+      <div class="notice-title">${n.title}</div>
+      <div class="notice-date">${n.date}</div>
+      <div class="notice-body">${n.body}</div>
+    </div>
+  `).join('');
+}
+
+init();
+</script>
+</body>
+</html>
