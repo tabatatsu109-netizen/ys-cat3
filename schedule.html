@@ -763,91 +763,127 @@ function renderRoundDateInputs(){
   const el=document.getElementById('roundDateInputs');
   if(!APP.rounds.length){
     el.innerHTML='<div style="color:var(--sub);font-size:12px">先にチームを登録して「自動生成」してください</div>';
+    renderVenueMaster();
     return;
   }
   const leagueMatches = DB.matches.filter(m=>m.league===APP.selectedLeague)
     .sort((a,b)=>(a.round-b.round)||(a.matchNo-b.matchNo));
 
+  // ── 節ごとのカード。データは「試合単位」で保持。
+  // 節ヘッダ右に「この節を一括設定」ボタンを用意（任意）
   el.innerHTML=APP.rounds.map((r,ri)=>{
-    const rm = leagueMatches.filter(m=>m.round===r.round);
+    const rm=leagueMatches.filter(m=>m.round===r.round);
+    // 節の代表日・会場（一括設定用）
+    const bulkDate = rm[0]?.date||'';
+    const bulkVenue = rm[0]?.venue||'';
+
     return `
-    <div class="card" style="margin-bottom:12px;overflow:visible">
-      <div class="card-head" style="background:#003087;font-size:12px">
-        第${r.round}節（${rm.length}試合）
-        ${r.date?`<span style="font-weight:400;font-size:11px;opacity:.8">　${fmtDate(r.date)}（${getDayName(r.date)}）</span>`:''}
+    <div class="card" style="margin-bottom:14px;overflow:visible">
+      <div class="card-head" style="background:var(--blue-d,#001f5c);font-size:12px;gap:10px">
+        <span>第${r.round}節（${rm.length}試合）</span>
+        <!-- 一括設定パネル（折りたたみ） -->
+        <details style="flex:1;cursor:pointer" onclick="event.stopPropagation()">
+          <summary style="font-size:11px;opacity:.8;list-style:none;cursor:pointer">
+            ⚡ この節を一括設定
+          </summary>
+          <div style="background:#f0f3fa;border-radius:6px;padding:10px;margin-top:8px;display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+            <div class="form-g">
+              <label style="color:var(--text-sub);font-size:11px">試合日（全試合に適用）</label>
+              <input type="date" id="bulk_date_${ri}" value="${bulkDate}"
+                style="padding:7px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%">
+            </div>
+            <div class="form-g">
+              <label style="color:var(--text-sub);font-size:11px">会場（全試合に適用）</label>
+              <select id="bulk_venue_${ri}"
+                style="padding:7px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%">
+                ${venueOptions(bulkVenue)}
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" style="white-space:nowrap"
+              onclick="applyBulkToRound(${ri})">適用</button>
+          </div>
+        </details>
       </div>
-      <div style="padding:12px 14px">
-        <!-- 節共通: 日付・会場 -->
-        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px">
-          <div class="form-g"><label>試合日</label>
-            <input type="date" id="rd_date_${ri}" value="${r.date}"
-              onchange="updateRoundDate(${ri})">
-          </div>
-          <div class="form-g"><label>会場</label>
-            <select id="rd_venue_${ri}" onchange="updateRoundVenue(${ri})">
-              ${venueOptions(r.venue)}
-            </select>
-          </div>
-          <div class="form-g"><label>会場責任者</label>
-            <input type="text" id="rd_manager_${ri}" value="${r.venueManager||''}" placeholder="氏名"
-              onchange="updateRoundManager(${ri})">
-          </div>
-        </div>
-        <!-- 試合個別設定 -->
-        <div style="border-top:1px solid #eef0f5;padding-top:10px">
-          <div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:8px">試合別設定（キックオフ・審判）</div>
-          ${rm.map((m,mi)=>{
+
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:720px">
+          <thead>
+            <tr style="background:#f0f3fa">
+              <th style="padding:7px 10px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap">試合</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border);white-space:nowrap">日付</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border);white-space:nowrap">KO</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">会場</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">主審+四審チーム</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">副審チーム</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">主審名</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">副審1</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">副審2</th>
+              <th style="padding:7px 8px;border-bottom:2px solid var(--border)">四審</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${rm.map(m=>{
             const h=DB.teams.find(t=>t.id===m.home)?.short||'?';
             const a=DB.teams.find(t=>t.id===m.away)?.short||'?';
-            return `
-            <div style="border:1px solid #eef0f5;border-radius:6px;padding:10px;margin-bottom:8px;background:#fafbff">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-                <span style="font-size:11px;font-weight:700;color:var(--sub);background:#e8f0ff;padding:2px 8px;border-radius:4px">第${m.matchNo}試合</span>
-                <span style="font-size:13px;font-weight:700">${h} <span style="color:var(--sub);font-weight:400">vs</span> ${a}</span>
-              </div>
-              <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">
-                <div class="form-g"><label>キックオフ</label>
-                  <input type="time" id="ko_${m.id}" value="${m.time||'09:00'}"
-                    onchange="updateMatchField('${m.id}','time',this.value)">
-                </div>
-                <div class="form-g"><label>主審＋四審チーム</label>
-                  <select id="refMain_${m.id}" onchange="updateMatchRefTeam('${m.id}','main',this.value)">
-                    ${teamOptions(m.refTeamMain,[m.home,m.away])}
-                  </select>
-                </div>
-                <div class="form-g"><label>副審チーム</label>
-                  <select id="refAss_${m.id}" onchange="updateMatchRefTeam('${m.id}','ass',this.value)">
-                    ${teamOptions(m.refTeamAss,[m.home,m.away])}
-                  </select>
-                </div>
-              </div>
-              <!-- 個人名（任意） -->
-              <div style="margin-top:8px">
-                <details>
-                  <summary style="font-size:11px;color:var(--sub);cursor:pointer">▶ 個人名を入力する（任意）</summary>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:8px">
-                    <div class="form-g"><label>主審</label>
-                      <input type="text" id="ref_${m.id}" value="${m.referee||''}" placeholder="氏名"
-                        onchange="updateMatchField('${m.id}','referee',this.value)">
-                    </div>
-                    <div class="form-g"><label>副審1</label>
-                      <input type="text" id="ref2a_${m.id}" value="${m.referee2a||''}" placeholder="氏名"
-                        onchange="updateMatchField('${m.id}','referee2a',this.value)">
-                    </div>
-                    <div class="form-g"><label>副審2</label>
-                      <input type="text" id="ref2b_${m.id}" value="${m.referee2b||''}" placeholder="氏名"
-                        onchange="updateMatchField('${m.id}','referee2b',this.value)">
-                    </div>
-                    <div class="form-g"><label>四審</label>
-                      <input type="text" id="ref4_${m.id}" value="${m.referee4th||''}" placeholder="氏名"
-                        onchange="updateMatchField('${m.id}','referee4th',this.value)">
-                    </div>
-                  </div>
-                </details>
-              </div>
-            </div>`;
+            const mainSh=m.refTeamMain?DB.teams.find(t=>t.id===m.refTeamMain)?.short||'':'';
+            const assSh=m.refTeamAss?DB.teams.find(t=>t.id===m.refTeamAss)?.short||'':'';
+            return `<tr style="border-bottom:1px solid #eef0f5">
+              <td style="padding:7px 10px;white-space:nowrap">
+                <div style="font-size:11px;color:var(--sub)">#${m.matchNo}</div>
+                <div style="font-weight:700">${h}<span style="font-weight:400;color:var(--sub);margin:0 4px">vs</span>${a}</div>
+              </td>
+              <td style="padding:6px 6px">
+                <input type="date" value="${m.date||''}"
+                  style="width:130px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:12px"
+                  onchange="updateMatchField('${m.id}','date',this.value)">
+              </td>
+              <td style="padding:6px 6px">
+                <input type="time" value="${m.time||'09:00'}"
+                  style="width:90px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:12px"
+                  onchange="updateMatchField('${m.id}','time',this.value)">
+              </td>
+              <td style="padding:6px 6px">
+                <select style="width:140px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:12px"
+                  onchange="updateMatchField('${m.id}','venue',this.value)">
+                  ${venueOptions(m.venue)}
+                </select>
+              </td>
+              <td style="padding:6px 6px">
+                <select style="width:100px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px"
+                  onchange="updateMatchRefTeam('${m.id}','main',this.value)">
+                  ${teamOptions(m.refTeamMain,[m.home,m.away])}
+                </select>
+              </td>
+              <td style="padding:6px 6px">
+                <select style="width:100px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px"
+                  onchange="updateMatchRefTeam('${m.id}','ass',this.value)">
+                  ${teamOptions(m.refTeamAss,[m.home,m.away,m.refTeamMain].filter(Boolean))}
+                </select>
+              </td>
+              <td style="padding:6px 5px">
+                <input type="text" value="${m.referee||mainSh}" placeholder="主審"
+                  style="width:70px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px"
+                  onchange="updateMatchField('${m.id}','referee',this.value)">
+              </td>
+              <td style="padding:6px 5px">
+                <input type="text" value="${m.referee2a||assSh}" placeholder="副審1"
+                  style="width:70px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px"
+                  onchange="updateMatchField('${m.id}','referee2a',this.value)">
+              </td>
+              <td style="padding:6px 5px">
+                <input type="text" value="${m.referee2b||assSh}" placeholder="副審2"
+                  style="width:70px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px"
+                  onchange="updateMatchField('${m.id}','referee2b',this.value)">
+              </td>
+              <td style="padding:6px 5px">
+                <input type="text" value="${m.referee4th||mainSh}" placeholder="四審"
+                  style="width:70px;padding:5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px"
+                  onchange="updateMatchField('${m.id}','referee4th',this.value)">
+              </td>
+            </tr>`;
           }).join('')}
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>`;
   }).join('');
@@ -855,31 +891,21 @@ function renderRoundDateInputs(){
   renderVenueMaster();
 }
 
-// 節共通: 日付を同節全matchに反映
-function updateRoundDate(ri){
+// 節一括設定（日付・会場を同節の全試合に適用）
+function applyBulkToRound(ri){
   const r=APP.rounds[ri];
-  r.date=document.getElementById('rd_date_'+ri)?.value||'';
-  DB.matches.filter(m=>m.league===APP.selectedLeague&&m.round===r.round).forEach(m=>m.date=r.date);
+  const date=document.getElementById('bulk_date_'+ri)?.value||'';
+  const venue=document.getElementById('bulk_venue_'+ri)?.value||'';
+  DB.matches.filter(m=>m.league===APP.selectedLeague&&m.round===r.round).forEach(m=>{
+    if(date) m.date=date;
+    if(venue) m.venue=venue;
+  });
   dbSave();
-  // 節ヘッダの日付表示を更新
   renderRoundDateInputs();
-}
-// 節共通: 会場を同節全matchに反映
-function updateRoundVenue(ri){
-  const r=APP.rounds[ri];
-  r.venue=document.getElementById('rd_venue_'+ri)?.value||'';
-  DB.matches.filter(m=>m.league===APP.selectedLeague&&m.round===r.round).forEach(m=>m.venue=r.venue);
-  dbSave();
-}
-// 節共通: 会場責任者
-function updateRoundManager(ri){
-  const r=APP.rounds[ri];
-  r.venueManager=document.getElementById('rd_manager_'+ri)?.value||'';
-  DB.matches.filter(m=>m.league===APP.selectedLeague&&m.round===r.round).forEach(m=>m.venueManager=r.venueManager);
-  dbSave();
+  toast('✅ 一括設定を適用しました');
 }
 
-// 試合個別: 単一フィールド更新
+// 試合個別: 単一フィールド更新（日付・KO・会場・審判名すべて共通）
 function updateMatchField(mid, field, value){
   const m=DB.matches.find(x=>x.id===mid);
   if(!m) return;
@@ -1138,11 +1164,14 @@ function renderComboTable(){
   document.getElementById('comboTableWrap').innerHTML=html;
 }
 
-// ─── SCHEDULE TABLE ── DB.matchesから描画 ────────────────
+// ─── SCHEDULE TABLE ── 試合単位で全列表示（rowspan廃止）────
 function renderScheduleTable(){
   const leagueMatches = DB.matches.filter(m=>m.league===APP.selectedLeague)
     .sort((a,b)=>(a.round-b.round)||(a.matchNo-b.matchNo));
-  if(!leagueMatches.length){ document.getElementById('scheduleTableWrap').innerHTML='<div style="color:var(--sub);text-align:center;padding:40px">日程を生成してください</div>'; return; }
+  if(!leagueMatches.length){
+    document.getElementById('scheduleTableWrap').innerHTML='<div style="color:var(--sub);text-align:center;padding:40px">日程を生成してください</div>';
+    return;
+  }
   const lname = DB.leagues.find(l=>l.id===APP.selectedLeague)?.name||'';
   const year = document.getElementById('s_year').value;
   const term = document.getElementById('s_term').value;
@@ -1150,35 +1179,70 @@ function renderScheduleTable(){
     <div style="font-size:15px;font-weight:700;margin-bottom:4px">山梨県ユース（U15）サッカーリーグ</div>
     <div style="font-size:13px;color:var(--sub)">${year}年度 ${term} ${lname} グループ日程表</div>`;
 
+  // 節ごとにグループ化して表示
+  // ・「節」セルは rowspan で結合
+  // ・「会場」は同節内で同じ会場が連続する場合のみ rowspan（別会場は別行）
+  // ・日付・KO・審判4役はすべて試合単位で表示（rowspan なし）
   const maxRound = Math.max(...leagueMatches.map(m=>m.round||1));
+
   let html=`<table class="schedule-table"><thead><tr>
-    <th>節</th><th>試合日</th><th>KO</th><th colspan="3">対戦カード</th>
-    <th>結果</th><th>会場</th><th>主審</th><th>副審1</th><th>副審2</th><th>四審</th>
+    <th style="white-space:nowrap">節</th>
+    <th style="white-space:nowrap">日付</th>
+    <th style="white-space:nowrap">KO</th>
+    <th colspan="3">対戦カード</th>
+    <th>結果</th>
+    <th>会場</th>
+    <th style="white-space:nowrap">主審</th>
+    <th style="white-space:nowrap">副審1</th>
+    <th style="white-space:nowrap">副審2</th>
+    <th style="white-space:nowrap">四審</th>
   </tr></thead><tbody>`;
+
   for(let r=1;r<=maxRound;r++){
     const rm = leagueMatches.filter(m=>m.round===r);
-    rm.forEach((m,mi)=>{
-      const h=DB.teams.find(t=>t.id===m.home)?.name||m.home;
-      const a=DB.teams.find(t=>t.id===m.away)?.name||m.away;
-      const result=m.status==='done'?`<span class="badge badge-blue">${m.homeGoal}-${m.awayGoal}</span>`:'<span class="badge badge-gray">未定</span>';
-      html+=`<tr>
-        ${mi===0?`<td class="round-head" rowspan="${rm.length}" style="font-size:13px;font-weight:700">第${r}節</td>
-        <td rowspan="${rm.length}">${m.date?fmtDate(m.date):''}</td>`:''}
-        <td style="white-space:nowrap">${m.time||''}</td>
-        <td class="team-a" style="text-align:right">${h}</td>
+    const roundSize = rm.length;
+
+    rm.forEach((m, mi)=>{
+      const h  = DB.teams.find(t=>t.id===m.home)?.name || m.home;
+      const a  = DB.teams.find(t=>t.id===m.away)?.name || m.away;
+      const hs = DB.teams.find(t=>t.id===m.home)?.short|| h;
+      const as = DB.teams.find(t=>t.id===m.away)?.short|| a;
+
+      const result = m.status==='done'
+        ? `<span class="badge badge-blue">${m.homeGoal}-${m.awayGoal}</span>`
+        : '<span class="badge badge-gray">未定</span>';
+
+      // 審判表示（チーム略称か個人名、どちらかが入っていれば表示）
+      const mainSh  = m.refTeamMain ? DB.teams.find(t=>t.id===m.refTeamMain)?.short||'' : '';
+      const assSh   = m.refTeamAss  ? DB.teams.find(t=>t.id===m.refTeamAss)?.short||''  : '';
+      const ref      = m.referee    || mainSh;
+      const ref2a    = m.referee2a  || assSh;
+      const ref2b    = m.referee2b  || assSh;
+      const ref4th   = m.referee4th || mainSh;
+
+      const dateStr  = m.date  ? fmtDate(m.date)+'<br><span style="font-size:10px;color:var(--sub)">（'+getDayName(m.date)+'）</span>' : '';
+      const venueStr = m.venue || '';
+
+      html += `<tr${mi===0?'':''}>
+        ${mi===0
+          ? `<td class="round-head" rowspan="${roundSize}" style="font-size:13px;font-weight:700;vertical-align:middle">第${r}節</td>`
+          : ''}
+        <td style="font-size:11px;white-space:nowrap">${dateStr}</td>
+        <td style="white-space:nowrap;font-size:12px">${m.time||''}</td>
+        <td class="team-a" style="text-align:right;font-size:12px">${hs}</td>
         <td class="combo-vs">vs</td>
-        <td class="team-b">${a}</td>
+        <td class="team-b" style="font-size:12px">${as}</td>
         <td>${result}</td>
-        ${mi===0?`<td rowspan="${rm.length}" style="font-size:11px">${m.venue||''}</td>
-        <td rowspan="${rm.length}" style="font-size:11px">${m.referee||( m.refTeamMain?DB.teams.find(t=>t.id===m.refTeamMain)?.short||'':'' )}</td>
-        <td rowspan="${rm.length}" style="font-size:11px">${m.referee2a||( m.refTeamAss?DB.teams.find(t=>t.id===m.refTeamAss)?.short||'':'' )}</td>
-        <td rowspan="${rm.length}" style="font-size:11px">${m.referee2b||( m.refTeamAss?DB.teams.find(t=>t.id===m.refTeamAss)?.short||'':'' )}</td>
-        <td rowspan="${rm.length}" style="font-size:11px">${m.referee4th||( m.refTeamMain?DB.teams.find(t=>t.id===m.refTeamMain)?.short||'':'' )}</td>`:''}
+        <td style="font-size:11px;white-space:nowrap">${venueStr}</td>
+        <td style="font-size:11px;white-space:nowrap">${ref}</td>
+        <td style="font-size:11px;white-space:nowrap">${ref2a}</td>
+        <td style="font-size:11px;white-space:nowrap">${ref2b}</td>
+        <td style="font-size:11px;white-space:nowrap">${ref4th}</td>
       </tr>`;
     });
   }
-  html+='</tbody></table>';
-  document.getElementById('scheduleTableWrap').innerHTML=html;
+  html += '</tbody></table>';
+  document.getElementById('scheduleTableWrap').innerHTML = html;
 }
 
 // ─── RESULTS FORM ── DB.matchesから試合選択 ──────────────
@@ -1514,25 +1578,39 @@ function exportScheduleExcel(){
   const year=document.getElementById('s_year').value;
   const term=document.getElementById('s_term').value;
   const wb=XLSX.utils.book_new();
-  const data=[['山梨県ユース（U15）サッカーリーグ'],[year+'年度','','','','','',term,'','','','','グループ日程表'],[]];
+
+  // ── 試合日程表シート（公式様式準拠・試合単位）
+  const data=[
+    ['山梨県ユース（U15）サッカーリーグ'],
+    [year+'年度','','','','','',term,'','','','','グループ日程表'],
+    [],
+    ['節','試合日','KO','リーグ','ホームチーム','','アウェイチーム','スコア','会場','主審','副審1','副審2','四審']
+  ];
   let lastRound=0;
-  leagueMatches.forEach((m,mi)=>{
-    if(m.round!==lastRound){
-      lastRound=m.round;
-      data.push([`■ 第${m.round}節`,'',m.date?fmtDate(m.date)+'（'+getDayName(m.date)+'）':'']);
-      data.push(['','','','◇会場：'+(m.venue||''),'','','','','','','','','会場責任者：'+(m.venueManager||'')]);
-      data.push(['','キックオフ','','リーグ','','チーム名','','','','対戦','','チーム名','主審','副審1','副審2','四審']);
-    }
+  leagueMatches.forEach(m=>{
     const h=DB.teams.find(t=>t.id===m.home)?.name||'';
     const a=DB.teams.find(t=>t.id===m.away)?.name||'';
-    data.push(['',m.time||'','',lname,'',h,'','','',m.status==='done'?`${m.homeGoal}-${m.awayGoal}`:'vs','',a,
-      m.referee||'',m.referee2a||'',m.referee2b||'',m.referee4th||'']);
+    const mainSh=m.refTeamMain?DB.teams.find(t=>t.id===m.refTeamMain)?.short||'':'';
+    const assSh =m.refTeamAss ?DB.teams.find(t=>t.id===m.refTeamAss)?.short||'':'';
+    const ref   =m.referee   ||mainSh;
+    const ref2a =m.referee2a ||assSh;
+    const ref2b =m.referee2b ||assSh;
+    const ref4  =m.referee4th||mainSh;
+    const roundLabel=m.round!==lastRound?`第${m.round}節`:'';
+    lastRound=m.round;
+    const dateLabel=m.date?`${fmtDate(m.date)}（${getDayName(m.date)}）`:'';
+    const score=m.status==='done'?`${m.homeGoal}-${m.awayGoal}`:'vs';
+    data.push([roundLabel,dateLabel,m.time||'',lname,h,'',a,score,m.venue||'',ref,ref2a,ref2b,ref4]);
   });
-  data.push([]);
+
   const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:4},{wch:10},{wch:4},{wch:16},{wch:4},{wch:20},{wch:4},{wch:4},{wch:4},{wch:8},{wch:4},{wch:20},{wch:14},{wch:14},{wch:14}];
+  ws['!cols']=[
+    {wch:8},{wch:12},{wch:6},{wch:14},{wch:18},{wch:4},{wch:18},{wch:7},
+    {wch:18},{wch:12},{wch:12},{wch:12},{wch:12}
+  ];
   XLSX.utils.book_append_sheet(wb,ws,'試合日程表');
-  // 結果シート
+
+  // ── 結果シート
   const resData=[['試合結果一覧'],['節','試合','日付','ホーム','スコア','アウェイ','会場']];
   leagueMatches.forEach(m=>{
     resData.push([`第${m.round}節`,`第${m.matchNo}試合`,m.date?fmtDate(m.date):'',
@@ -1540,12 +1618,14 @@ function exportScheduleExcel(){
       DB.teams.find(t=>t.id===m.away)?.name||'',m.venue||'']);
   });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resData),'試合結果');
-  // 順位表シート
+
+  // ── 順位表シート
   const st=calcStandings();
   const stData=[[`${year}年度 ${term} ${lname} 順位表`],[],
     ['順位','チーム名','試合数','勝','分','敗','得点','失点','得失点差','勝点'],
     ...st.map((t,i)=>[i+1,t.name,t.gp,t.w,t.d,t.l,t.gf,t.ga,t.gd,t.pts])];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(stData),'順位表');
+
   XLSX.writeFile(wb, `${year}${term}_${lname}_試合日程表.xlsx`);
   toast('📊 試合日程表をExcel出力しました');
 }
