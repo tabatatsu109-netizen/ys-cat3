@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クラブプランナー 管理</title>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3247;
+  --text:#e8eaf0; --text-muted:#7a7f9a; --accent:#4a7cdc;
+  --U15:#e05252; --U14:#9b59dc; --U13:#4a7cdc; --U12:#3ab07a; --U10:#e0bc3a;
+  --red:#e05252; --green:#3ab07a; --yellow:#e0bc3a; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;padding-bottom:80px;}
+
+/* Header */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+.header-logo{font-size:16px;font-weight:700;}
+.header-logo span{color:var(--accent);}
+.nav-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:var(--radius);font-size:13px;cursor:pointer;text-decoration:none;display:inline-block;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* Tab nav */
+.tab-nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 12px;overflow-x:auto;}
+.tab-btn{padding:12px 12px;font-size:12px;font-weight:700;color:var(--text-muted);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* ===== CALENDAR ===== */
+.admin-cal-wrap{padding:16px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cal-title{font-size:18px;font-weight:700;}
+.cal-nav{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:var(--radius);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;}
+.cal-nav:hover{border-color:var(--accent);}
+.cal-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);}
+.cal-wd{text-align:center;padding:8px 0;font-size:11px;font-weight:700;color:var(--text-muted);}
+.cal-wd:first-child{color:var(--red);}
+.cal-wd:last-child{color:#6ab4ff;}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-day{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:88px;padding:4px;position:relative;cursor:pointer;transition:background .1s;}
+.cal-day:hover{background:rgba(74,124,220,.07);}
+.cal-day:nth-child(7n){border-right:none;}
+.cal-day.other-month{opacity:.4;}
+.cal-day.today{background:rgba(74,124,220,.1);}
+.day-num{font-size:12px;color:var(--text-muted);margin-bottom:3px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+.cal-day.today .day-num{background:var(--accent);color:#fff;font-weight:700;}
+.cal-day:nth-child(7n+1) .day-num{color:var(--red);}
+.cal-day:nth-child(7n+1).today .day-num{color:#fff;}
+.cal-day:nth-child(7n) .day-num{color:#6ab4ff;}
+.cal-day:nth-child(7n).today .day-num{color:#fff;}
+.day-add-hint{position:absolute;bottom:3px;right:4px;font-size:14px;color:var(--border);opacity:0;transition:opacity .1s;pointer-events:none;}
+.cal-day:hover .day-add-hint{opacity:1;}
+.event-chip{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-left:3px solid;display:block;}
+.event-chip[data-cat="U15"]{background:rgba(224,82,82,.18);color:var(--U15);border-color:var(--U15);}
+.event-chip[data-cat="U14"]{background:rgba(155,89,220,.18);color:var(--U14);border-color:var(--U14);}
+.event-chip[data-cat="U13"]{background:rgba(74,124,220,.18);color:var(--U13);border-color:var(--U13);}
+.event-chip[data-cat="U12"]{background:rgba(58,176,122,.18);color:var(--U12);border-color:var(--U12);}
+.event-chip[data-cat="U10"]{background:rgba(224,188,58,.18);color:var(--U10);border-color:var(--U10);}
+@media(max-width:600px){.cal-day{min-height:68px;}.event-chip{font-size:9px;padding:1px 3px;}}
+
+/* ===== MODAL (slide-up) ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:300;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:580px;max-height:93vh;overflow-y:auto;padding:20px;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);padding-bottom:calc(20px + env(safe-area-inset-bottom));}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-drag{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:480px){.form-grid{grid-template-columns:1fr;}}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:11px;color:var(--text-muted);font-weight:700;}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 10px;border-radius:var(--radius);font-size:13px;width:100%;-webkit-appearance:none;appearance:none;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+textarea{resize:vertical;min-height:56px;}
+input[readonly]{color:var(--accent);font-weight:700;}
+.btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:opacity .15s;}
+.btn:active{opacity:.8;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-danger{background:rgba(224,82,82,.15);color:var(--red);border:1px solid rgba(224,82,82,.3);}
+.btn-copy{background:rgba(224,188,58,.15);color:var(--yellow);border:1px solid rgba(224,188,58,.3);}
+.btn-sm{padding:6px 11px;font-size:12px;}
+.form-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;align-items:center;}
+.form-actions .spacer{flex:1;}
+
+/* Chip select */
+.chip-select{display:flex;flex-wrap:wrap;gap:5px;padding:7px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);min-height:44px;}
+.chip{padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);user-select:none;transition:all .12s;}
+.chip.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
+.chip.absent-sel{background:rgba(224,82,82,.18);border-color:var(--red);color:var(--red);}
+
+/* Conflict warn */
+.warn-box{background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--red);margin-bottom:10px;display:none;}
+.warn-box.show{display:block;}
+
+/* Player stats badge */
+.stat-pill{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 9px;font-size:11px;color:var(--text-muted);}
+.stat-pill b{color:var(--text);}
+
+/* ===== Tab inner ===== */
+.tab-inner{padding:16px;}
+.section-title{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+.item-list{display:flex;flex-direction:column;gap:6px;}
+.item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.item-card:hover{border-color:var(--accent);}
+.item-name{font-size:13px;font-weight:700;}
+.item-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+/* Player card richer */
+.player-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .12s;}
+.player-card:hover{border-color:var(--accent);}
+.player-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.player-info{flex:1;min-width:0;}
+.player-name{font-size:13px;font-weight:700;}
+.player-meta{font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;}
+.player-stats{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;}
+.cat-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;}
+
+/* Grade group header */
+.grade-header{font-size:11px;font-weight:700;padding:6px 4px;color:var(--text-muted);letter-spacing:.5px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+
+/* absence row in player modal */
+.abs-row{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.abs-row-info{font-size:12px;}
+
+/* Auto-select summary */
+.auto-summary{background:rgba(74,124,220,.1);border:1px solid rgba(74,124,220,.25);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--accent);margin-bottom:8px;display:none;}
+.auto-summary.show{display:block;}
+
+/* Save bar */
+.save-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:100;padding-bottom:calc(12px + env(safe-area-inset-bottom));}
+.save-status{font-size:12px;color:var(--text-muted);}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--green);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:500;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{background:var(--red);}
+
+.sub-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+.divider{border:none;border-top:1px solid var(--border);margin:12px 0;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">⚙️ 管理<span>画面</span></div>
+  <a class="nav-btn" href="planner.html">← 閲覧</a>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('calendar',this)">📅 カレンダー</button>
+  <button class="tab-btn" onclick="switchTab('players',this)">👤 選手</button>
+  <button class="tab-btn" onclick="switchTab('staff',this)">🧑 スタッフ</button>
+  <button class="tab-btn" onclick="switchTab('absences',this)">🏖 休み</button>
+  <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ 設定</button>
+</div>
+
+<!-- ===== CALENDAR TAB ===== -->
+<div class="tab-content active" id="tab-calendar">
+  <div class="admin-cal-wrap">
+    <div class="cal-header">
+      <button class="cal-nav" onclick="changeMonth(-1)">‹</button>
+      <div class="cal-title" id="cal-title"></div>
+      <button class="cal-nav" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-weekdays">
+        <div class="cal-wd">日</div><div class="cal-wd">月</div><div class="cal-wd">火</div>
+        <div class="cal-wd">水</div><div class="cal-wd">木</div><div class="cal-wd">金</div><div class="cal-wd">土</div>
+      </div>
+      <div class="cal-days" id="cal-days"></div>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center">日付マスをタップ→新規登録 ／ 予定をタップ→編集</p>
+  </div>
+</div>
+
+<!-- ===== PLAYERS TAB ===== -->
+<div class="tab-content" id="tab-players">
+  <div class="tab-inner">
+    <div class="section-title">
+      選手マスター
+      <button class="btn btn-primary btn-sm" onclick="openPlayerModal()">＋ 追加</button>
+    </div>
+    <!-- Summary -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" id="player-summary"></div>
+    <!-- List -->
+    <div id="player-list"></div>
+  </div>
+</div>
+
+<!-- ===== STAFF TAB ===== -->
+<div class="tab-content" id="tab-staff">
+  <div class="tab-inner">
+    <div class="section-title">スタッフ管理 <button class="btn btn-primary btn-sm" onclick="openStaffForm()">＋ 追加</button></div>
+    <div class="sub-form" id="staff-subform" style="display:none">
+      <div class="form-grid">
+        <div class="form-group"><label>氏名 *</label><input type="text" id="sf-name" placeholder="氏名"></div>
+        <div class="form-group"><label>役職</label>
+          <select id="sf-role"><option>監督</option><option>ヘッドコーチ</option><option>コーチ</option><option>GKコーチ</option><option>マネージャー</option><option>トレーナー</option></select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary btn-sm" onclick="saveStaff()">保存</button>
+        <button class="btn btn-sm" style="background:var(--surface2);border:1px solid var(--border)" onclick="document.getElementById('staff-subform').style.display='none'">キャンセル</button>
+        <div class="spacer"></div>
+        <button class="btn btn-danger btn-sm" id="del-staff-btn" style="display:none" onclick="deleteStaff()">削除</button>
+      </div>
+    </div>
+    <div class="item-list" id="staff-list"></div>
+  </div>
+</div>
+
+<!-- ===== ABSENCES TAB ===== -->
+<div class="tab-content" id="tab-absences">
+  <div class="tab-inner">
+    <div class="section-title">選手休み管理 <button class="btn btn-primary btn-sm" onclick="openAbsForm()">＋ 追加</button></div>
+    <div class="sub-form" id="abs-form" style="display:none">
+      <div class="form-grid">
+        <div class="form-group full"><label>選手 *</label><select id="abf-player"></select></div>
+        <div class="form-group"><label>開始日</label><input type="date" id="abf-start"></div>
+        <div class="form-group"><label>終了日</label><input type="date" id="abf-end"></div>
+        <div class="form-group full"><label>理由</label>
+          <select id="abf-reason"><option>家族旅行</option><option>帰省</option><option>怪我</option><option>病気</option><option>学校行事</option><option>その他</option></select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary btn-sm" onclick="saveAbsence()">保存</button>
+        <button class="btn btn-sm" style="background:var(--surface2);border:1px solid var(--border)" onclick="document.getElementById('abs-form').style.display='none'">キャンセル</button>
+        <div class="spacer"></div>
+        <button class="btn btn-danger btn-sm" id="del-abs-btn" style="display:none" onclick="deleteAbsence()">削除</button>
+      </div>
+    </div>
+    <div class="item-list" id="abs-list"></div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS TAB ===== -->
+<div class="tab-content" id="tab-settings">
+  <div class="tab-inner">
+    <div class="section-title">JSONBin 設定</div>
+    <div class="form-card">
+      <div class="form-group" style="margin-bottom:10px"><label>Bin ID</label><input type="text" id="s-binid" placeholder="例: 6a28d6..."></div>
+      <div class="form-group" style="margin-bottom:10px"><label>Access Key</label><input type="text" id="s-apikey" placeholder="$2a$10$..."></div>
+      <button class="btn btn-primary btn-sm" onclick="saveSettings()">設定を保存</button>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:10px">設定はlocalStorageに保存されます。</p>
+    </div>
+    <div class="section-title" style="margin-top:8px">会場マスター</div>
+    <div class="form-card">
+      <div style="display:flex;gap:8px;margin-bottom:10px"><input type="text" id="venue-input" placeholder="会場名"><button class="btn btn-primary btn-sm" onclick="addVenue()">追加</button></div>
+      <div class="item-list" id="venue-list"></div>
+    </div>
+    <div class="section-title" style="margin-top:8px">車両マスター</div>
+    <div class="form-card">
+      <div style="display:flex;gap:8px;margin-bottom:10px"><input type="text" id="veh-input" placeholder="車両名"><button class="btn btn-primary btn-sm" onclick="addVehicle()">追加</button></div>
+      <div class="item-list" id="veh-list"></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-danger btn-sm" onclick="exportData()">データをエクスポート（JSON）</button>
+      <button class="btn btn-sm" style="background:var(--surface2);border:1px solid var(--border)" onclick="initDefaultPlayers()">選手データを初期化</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ACTIVITY FORM MODAL ===== -->
+<div class="modal-overlay" id="act-modal" onclick="handleOverlayClick(event)">
+  <div class="modal" id="act-modal-inner">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title-text">活動を登録</div>
+      <button class="modal-close" onclick="closeActModal()">✕</button>
+    </div>
+    <div class="warn-box" id="conflict-warn"></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>日付 *</label>
+        <input type="date" id="f-date" onchange="checkConflicts();updatePlayerCount()">
+      </div>
+      <div class="form-group">
+        <label>カテゴリー *</label>
+        <select id="f-cat" onchange="onCatChange()">
+          <option value="">選択</option>
+          <option value="U15">U15（中3）</option>
+          <option value="U14">U14（中2）</option>
+          <option value="U13">U13（中1）</option>
+          <option value="U12">U12</option>
+          <option value="U10">U10</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>活動種別 *</label>
+        <select id="f-type">
+          <option value="TR">TR（トレーニング）</option>
+          <option value="TRM">TRM（練習試合）</option>
+          <option value="GAME">公式戦</option>
+          <option value="TOUR">遠征</option>
+          <option value="OFF">OFF</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>活動名</label>
+        <input type="text" id="f-name" placeholder="例: U15 TR">
+      </div>
+      <div class="form-group">
+        <label>開始時間</label>
+        <input type="time" id="f-start" value="16:00" onchange="checkConflicts()">
+      </div>
+      <div class="form-group">
+        <label>終了時間</label>
+        <input type="time" id="f-end" value="18:00" onchange="checkConflicts()">
+      </div>
+      <div class="form-group full">
+        <label>会場</label>
+        <select id="f-venue" onchange="checkConflicts()"><option value="">選択</option></select>
+      </div>
+    </div>
+
+    <!-- Staff & Vehicles -->
+    <div class="form-group" style="margin-top:10px">
+      <label>担当スタッフ</label>
+      <div class="chip-select" id="staff-chips"></div>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label>使用車両</label>
+      <div class="chip-select" id="vehicle-chips"></div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Player selection -->
+    <div class="auto-summary" id="auto-summary"></div>
+
+    <div class="form-group" style="margin-top:4px">
+      <label>📋 基本メンバー（カテゴリー全員・自動選択）</label>
+      <div class="chip-select" id="base-player-chips" style="min-height:52px"></div>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label>➕ 追加招集（他カテゴリーから）</label>
+      <div class="chip-select" id="extra-player-chips"></div>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label>🚫 欠席選手（タップで除外）</label>
+      <div class="chip-select" id="absent-chips"></div>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label>参加予定人数（自動計算）</label>
+      <input type="text" id="f-count" readonly>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label>備考</label>
+      <textarea id="f-notes" placeholder="対戦相手・連絡事項など"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveActivity()">💾 保存</button>
+      <button class="btn btn-copy" id="copy-btn" style="display:none" onclick="duplicateActivity()">📋 複製</button>
+      <div class="spacer"></div>
+      <button class="btn btn-danger btn-sm" id="del-act-btn" style="display:none" onclick="deleteActivity()">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PLAYER DETAIL MODAL ===== -->
+<div class="modal-overlay" id="player-modal" onclick="handlePlayerOverlay(event)">
+  <div class="modal" id="player-modal-inner">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="pm-title">選手詳細</div>
+      <button class="modal-close" onclick="closePlayerModal()">✕</button>
+    </div>
+    <div id="pm-body"></div>
+  </div>
+</div>
+
+<!-- Save bar -->
+<div class="save-bar">
+  <span class="save-status" id="save-status">読み込み中...</span>
+  <button class="btn btn-primary btn-sm" onclick="saveAll()">💾 保存する</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// MASTER DATA
+// ============================================================
+const CONFIG_KEY = 'planner_config';
+const DATA_KEY   = 'planner_data';
+const CAT_COLOR  = { U15:'#e05252', U14:'#9b59dc', U13:'#4a7cdc', U12:'#3ab07a', U10:'#e0bc3a' };
+const CAT_BG     = { U15:'rgba(224,82,82,.15)', U14:'rgba(155,89,220,.15)', U13:'rgba(74,124,220,.15)', U12:'rgba(58,176,122,.15)', U10:'rgba(224,188,58,.15)' };
+const GRADE_MAP  = { U15:'中学3年', U14:'中学2年', U13:'中学1年', U12:'小学6年', U10:'小学4-5年' };
+const TODAY      = new Date();
+
+// 初期選手データ（初回のみ投入）
+const DEFAULT_PLAYERS = [
+  // U15（中3）
+  {id:'dp_u15_01',name:'佐々木 輝',  grade:'中学3年',category:'U15'},
+  {id:'dp_u15_02',name:'高木 陽',    grade:'中学3年',category:'U15'},
+  {id:'dp_u15_03',name:'植松 永輔',  grade:'中学3年',category:'U15'},
+  {id:'dp_u15_04',name:'下山 紗永',  grade:'中学3年',category:'U15'},
+  {id:'dp_u15_05',name:'平出 雄迅',  grade:'中学3年',category:'U15'},
+  {id:'dp_u15_06',name:'高橋 結',    grade:'中学3年',category:'U15'},
+  {id:'dp_u15_07',name:'清水 拓人',  grade:'中学3年',category:'U15'},
+  {id:'dp_u15_08',name:'堀込 翔生',  grade:'中学3年',category:'U15'},
+  {id:'dp_u15_09',name:'伊藤 緑良',  grade:'中学3年',category:'U15'},
+  // U14（中2）
+  {id:'dp_u14_01',name:'白倉 光結',  grade:'中学2年',category:'U14'},
+  {id:'dp_u14_02',name:'仁科 凌',    grade:'中学2年',category:'U14'},
+  {id:'dp_u14_03',name:'児玉 遥希',  grade:'中学2年',category:'U14'},
+  {id:'dp_u14_04',name:'小林 岳',    grade:'中学2年',category:'U14'},
+  {id:'dp_u14_05',name:'名取 要',    grade:'中学2年',category:'U14'},
+  // U13（中1）
+  {id:'dp_u13_01',name:'溝口 佐奈',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_02',name:'小野 佑太朗',grade:'中学1年',category:'U13'},
+  {id:'dp_u13_03',name:'濱尾 夏紀',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_04',name:'笹本 真聖',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_05',name:'袴田 道沖',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_06',name:'名取 瑛馬',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_07',name:'小宮山 新',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_08',name:'山本 昊生',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_09',name:'中村 友希',  grade:'中学1年',category:'U13'},
+  {id:'dp_u13_10',name:'下山 晟ノ介',grade:'中学1年',category:'U13'},
+  {id:'dp_u13_11',name:'清水 博史',  grade:'中学1年',category:'U13'},
+];
+
+let cfg  = JSON.parse(localStorage.getItem(CONFIG_KEY)||'{"binId":"","apiKey":""}');
+let data = {
+  activities:[], players:[], staff:[],
+  vehicles:['マイクロバス','ハイエース①','ハイエース②','軽トラック'],
+  venues:['白州総合グラウンド','長坂総合スポーツ公園'],
+  absences:[]
+};
+
+let curYear  = TODAY.getFullYear();
+let curMonth = TODAY.getMonth();
+let editActId    = null;
+let editPlayerId = null;
+
+// ============================================================
+// JSONBin
+// ============================================================
+async function binGet() {
+  if (!cfg.binId||!cfg.apiKey) return null;
+  try {
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`,{headers:{'X-Access-Key':cfg.apiKey}});
+    if (!r.ok) return null;
+    return (await r.json()).record;
+  } catch(e){return null;}
+}
+async function binPut(d) {
+  localStorage.setItem(DATA_KEY, JSON.stringify(d));
+  if (!cfg.binId||!cfg.apiKey) return false;
+  try {
+    const cur = await binGet();
+    const merged = {...cur,...d};
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`,{
+      method:'PUT',headers:{'Content-Type':'application/json','X-Access-Key':cfg.apiKey},
+      body:JSON.stringify(merged)
+    });
+    if (r.ok) localStorage.setItem(DATA_KEY,JSON.stringify(merged));
+    return r.ok;
+  } catch(e){return false;}
+}
+
+// ============================================================
+// Init
+// ============================================================
+async function init() {
+  const remote = await binGet();
+  const local  = localStorage.getItem(DATA_KEY);
+  if (remote)     data = {...data,...remote};
+  else if (local) data = {...data,...JSON.parse(local)};
+
+  // 初回: 選手データが空なら初期選手を投入
+  if (!data.players || data.players.length === 0) {
+    data.players = DEFAULT_PLAYERS.map(p => ({...p, actCount:0, actMinutes:0, actDays:[], notes:''}));
+    toast('選手マスターを初期登録しました ✓');
+  }
+
+  document.getElementById('s-binid').value  = cfg.binId;
+  document.getElementById('s-apikey').value = cfg.apiKey;
+  renderAll();
+  updateSaveStatus();
+}
+
+function initDefaultPlayers() {
+  if (!confirm('選手データを初期データで上書きしますか？\n（既存の選手データは消えます）')) return;
+  data.players = DEFAULT_PLAYERS.map(p => ({...p, actCount:0, actMinutes:0, actDays:[], notes:''}));
+  renderPlayerList();
+  toast('初期選手データを登録しました ✓');
+}
+
+function renderAll() {
+  renderCalendar();
+  renderPlayerList();
+  renderStaffList();
+  renderAbsList();
+  renderVenueList();
+  renderVehList();
+}
+
+// ============================================================
+// Tab
+// ============================================================
+function switchTab(name,btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function fmtDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function toast(msg,err=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show'+(err?' error':'');
+  setTimeout(()=>el.className='toast',2800);
+}
+function updateSaveStatus(){document.getElementById('save-status').textContent=cfg.binId?'JSONBin接続済み':'ローカル保存モード';}
+async function saveAll(){const ok=await binPut(data);toast(ok?'保存しました ✓':'ローカルに保存しました（JSONBin未設定）');}
+
+// ============================================================
+// CALENDAR
+// ============================================================
+function changeMonth(d){curMonth+=d;if(curMonth<0){curMonth=11;curYear--;}if(curMonth>11){curMonth=0;curYear++;}renderCalendar();}
+
+function renderCalendar(){
+  document.getElementById('cal-title').textContent=`${curYear}年${curMonth+1}月`;
+  const first=new Date(curYear,curMonth,1);
+  const last=new Date(curYear,curMonth+1,0);
+  const startWd=first.getDay();
+  const cells=[];
+  for(let i=0;i<startWd;i++) cells.push({date:new Date(curYear,curMonth,-startWd+1+i),other:true});
+  for(let d=1;d<=last.getDate();d++) cells.push({date:new Date(curYear,curMonth,d),other:false});
+  while(cells.length%7!==0) cells.push({date:new Date(curYear,curMonth+1,cells.length-(startWd+last.getDate())+1),other:true});
+  const acts=data.activities||[];
+  document.getElementById('cal-days').innerHTML=cells.map(c=>{
+    const ds=fmtDate(c.date);
+    const dayActs=acts.filter(a=>a.date===ds).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    const isToday=ds===fmtDate(TODAY);
+    const chips=dayActs.slice(0,4).map(a=>`<span class="event-chip" data-cat="${a.category}" onclick="event.stopPropagation();openActForm('${a.id}')" title="${a.category} ${a.name||a.actType} ${a.startTime}〜${a.endTime}">${a.category} ${a.actType}</span>`).join('');
+    const more=dayActs.length>4?`<div style="font-size:9px;color:var(--text-muted);padding:1px 3px">+${dayActs.length-4}</div>`:'';
+    return `<div class="cal-day${c.other?' other-month':''}${isToday?' today':''}" onclick="openActForm(null,'${ds}')">
+      <div class="day-num">${c.date.getDate()}</div>${chips}${more}
+      <span class="day-add-hint">＋</span>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// ACTIVITY FORM
+// ============================================================
+function openActForm(id=null, date=null){
+  editActId=id;
+  const isNew=!id;
+  document.getElementById('modal-title-text').textContent=isNew?'活動を登録':'活動を編集';
+  document.getElementById('del-act-btn').style.display=isNew?'none':'inline-flex';
+  document.getElementById('copy-btn').style.display=isNew?'none':'inline-flex';
+  document.getElementById('conflict-warn').classList.remove('show');
+
+  if(isNew){
+    document.getElementById('f-date').value=date||'';
+    document.getElementById('f-cat').value='';
+    document.getElementById('f-type').value='TR';
+    document.getElementById('f-name').value='';
+    document.getElementById('f-start').value='16:00';
+    document.getElementById('f-end').value='18:00';
+    document.getElementById('f-notes').value='';
+    document.getElementById('f-count').value='';
+    setupVenueSelect('');
+    setupChips('staff-chips',data.staff.map(s=>s.name),[]);
+    setupChips('vehicle-chips',data.vehicles,[]);
+    document.getElementById('base-player-chips').innerHTML='';
+    document.getElementById('extra-player-chips').innerHTML='';
+    document.getElementById('absent-chips').innerHTML='';
+    document.getElementById('auto-summary').classList.remove('show');
+  } else {
+    const a=data.activities.find(x=>x.id===id);
+    if(!a)return;
+    document.getElementById('f-date').value=a.date;
+    document.getElementById('f-cat').value=a.category;
+    document.getElementById('f-type').value=a.actType;
+    document.getElementById('f-name').value=a.name||'';
+    document.getElementById('f-start').value=a.startTime;
+    document.getElementById('f-end').value=a.endTime;
+    document.getElementById('f-notes').value=a.notes||'';
+    setupVenueSelect(a.venue||'');
+    setupChips('staff-chips',data.staff.map(s=>s.name),a.staff||[]);
+    setupChips('vehicle-chips',data.vehicles,a.vehicles||[]);
+    buildPlayerSelectors(a.category, a.date, a.extraPlayers||[], a.absentPlayers||[]);
+  }
+  document.getElementById('act-modal').classList.add('open');
+  document.getElementById('act-modal-inner').scrollTop=0;
+}
+
+function closeActModal(){document.getElementById('act-modal').classList.remove('open');editActId=null;}
+function handleOverlayClick(e){if(e.target===document.getElementById('act-modal'))closeActModal();}
+
+function onCatChange(){
+  const cat=document.getElementById('f-cat').value;
+  const date=document.getElementById('f-date').value;
+  buildPlayerSelectors(cat,date,[],[]);
+  checkConflicts();
+}
+
+// カテゴリー選択→自動選択＋欠席候補セット
+function buildPlayerSelectors(cat, date, extraSel=[], absentSel=[]) {
+  const basePlayers = cat ? data.players.filter(p=>p.category===cat) : [];
+  const otherPlayers = cat ? data.players.filter(p=>p.category!==cat) : data.players;
+
+  // 自動休み適用
+  const autoAbsent = date ? basePlayers.filter(p=>isOnAbsence(p.name,date)).map(p=>p.name) : [];
+
+  // Base chips（カテゴリー全員を表示、休み中はグレー）
+  document.getElementById('base-player-chips').innerHTML = basePlayers.map(p=>{
+    const onAbs = autoAbsent.includes(p.name);
+    return `<span class="chip selected${onAbs?' absent-sel':''}" data-player="${p.name}" data-base="1"
+      onclick="toggleBaseChip(this)" title="${onAbs?'休み中':''}">${p.name}${onAbs?' 🏖':''}</span>`;
+  }).join('') || '<span style="font-size:11px;color:var(--text-muted);padding:4px">カテゴリーを選択してください</span>';
+
+  // Extra（他カテゴリー）
+  document.getElementById('extra-player-chips').innerHTML = otherPlayers.map(p=>
+    `<span class="chip${extraSel.includes(p.name)?' selected':''}" data-player="${p.name}"
+      onclick="toggleChip(this);updatePlayerCount()">${p.category} ${p.name}</span>`
+  ).join('');
+
+  // 欠席（base players + extra selected）
+  rebuildAbsentChips(absentSel, autoAbsent);
+
+  // Summary
+  const sumEl = document.getElementById('auto-summary');
+  if (cat && basePlayers.length) {
+    sumEl.textContent = `✓ ${cat}（${GRADE_MAP[cat]||cat}）全員 ${basePlayers.length}名を自動選択。休み中の選手は除外対象に表示されます。`;
+    sumEl.classList.add('show');
+  } else { sumEl.classList.remove('show'); }
+
+  updatePlayerCount();
+}
+
+function rebuildAbsentChips(absentSel=[], autoAbsent=[]) {
+  const cat = document.getElementById('f-cat').value;
+  const date = document.getElementById('f-date').value;
+  const basePlayers = cat ? data.players.filter(p=>p.category===cat) : [];
+  const extraNames  = getSelectedChips('extra-player-chips');
+  const extraPlayers = data.players.filter(p=>extraNames.includes(p.name));
+  const allCandidates = [...basePlayers, ...extraPlayers];
+
+  document.getElementById('absent-chips').innerHTML = allCandidates.map(p=>{
+    const onAbs = autoAbsent.includes(p.name) || (date && isOnAbsence(p.name, date));
+    const isSel = absentSel.includes(p.name) || onAbs;
+    return `<span class="chip${isSel?' absent-sel':''}" data-player="${p.name}"
+      onclick="toggleAbsentChip(this)">${p.name}${onAbs?' 🏖':''}</span>`;
+  }).join('');
+}
+
+function toggleBaseChip(chip) {
+  // base チップはそのまま参加/不参加を absent で管理するため、ここでは何もしない
+  // (基本メンバー表示は読み取り専用として使用)
+}
+
+function toggleChip(chip){chip.classList.toggle('selected');rebuildAbsentChips();updatePlayerCount();}
+function toggleAbsentChip(chip){
+  if(chip.classList.contains('absent-sel')) chip.classList.remove('absent-sel');
+  else chip.classList.add('absent-sel');
+  updatePlayerCount();
+}
+
+function getSelectedChips(id){return [...document.querySelectorAll(`#${id} .chip.selected`)].map(c=>c.dataset.player||c.textContent.trim());}
+function getAbsentChips(){return [...document.querySelectorAll('#absent-chips .chip.absent-sel')].map(c=>c.dataset.player||c.textContent.replace('🏖','').trim());}
+
+function isOnAbsence(playerName, date) {
+  return (data.absences||[]).some(ab=>ab.playerName===playerName && date>=ab.startDate && date<=ab.endDate);
+}
+
+function updatePlayerCount() {
+  const cat  = document.getElementById('f-cat').value;
+  const date = document.getElementById('f-date').value;
+  if(!cat){document.getElementById('f-count').value='';return;}
+  const base   = data.players.filter(p=>p.category===cat).length;
+  const extra  = getSelectedChips('extra-player-chips').length;
+  const absent = getAbsentChips().length;
+  const total  = Math.max(0, base+extra-absent);
+  document.getElementById('f-count').value = `${total}名（基本${base} ＋追加${extra} ー欠席${absent}）`;
+}
+
+function setupVenueSelect(selected=''){
+  const sel=document.getElementById('f-venue');
+  sel.innerHTML='<option value="">選択してください</option>'+
+    data.venues.map(v=>`<option value="${v}"${v===selected?' selected':''}>${v}</option>`).join('')+
+    '<option value="その他">その他</option>';
+}
+function setupChips(id,options,selected){
+  document.getElementById(id).innerHTML=options.map(o=>
+    `<span class="chip${selected.includes(o)?' selected':''}" onclick="toggleChip(this)">${o}</span>`
+  ).join('');
+}
+function toggleChip(chip){chip.classList.toggle('selected');updatePlayerCount();}
+function getSelectedChips(id){return [...document.querySelectorAll(`#${id} .chip.selected`)].map(c=>c.dataset.player||c.textContent.trim());}
+
+function checkConflicts(){
+  const date=document.getElementById('f-date').value;
+  const venue=document.getElementById('f-venue').value;
+  const s=document.getElementById('f-start').value;
+  const e=document.getElementById('f-end').value;
+  const warn=document.getElementById('conflict-warn');
+  if(!date||!venue||!s||!e){warn.classList.remove('show');return;}
+  const conflicts=(data.activities||[]).filter(a=>a.id!==editActId&&a.date===date&&a.venue===venue&&a.actType!=='OFF'&&a.startTime<e&&a.endTime>s);
+  if(conflicts.length){warn.textContent=`⚠ 会場重複: ${conflicts.map(c=>`${c.category} ${c.startTime}〜${c.endTime}`).join('、')}`;warn.classList.add('show');}
+  else warn.classList.remove('show');
+  updatePlayerCount();
+}
+
+function collectActivity(newId) {
+  const cat  = document.getElementById('f-cat').value;
+  const date = document.getElementById('f-date').value;
+  return {
+    id: newId||editActId||'a'+Date.now(),
+    date, category:cat,
+    actType:   document.getElementById('f-type').value,
+    name:      document.getElementById('f-name').value || `${cat} ${document.getElementById('f-type').value}`,
+    startTime: document.getElementById('f-start').value,
+    endTime:   document.getElementById('f-end').value,
+    venue:     document.getElementById('f-venue').value,
+    staff:     getSelectedChips('staff-chips'),
+    vehicles:  getSelectedChips('vehicle-chips'),
+    // 基本メンバー = カテゴリー全員（absentsで管理）
+    extraPlayers:  getSelectedChips('extra-player-chips'),
+    absentPlayers: getAbsentChips(),
+    notes: document.getElementById('f-notes').value,
+    playerCount: parseInt(document.getElementById('f-count').value)||0
+  };
+}
+
+function saveActivity(){
+  const a=collectActivity();
+  if(!a.date||!a.category){toast('日付とカテゴリーは必須です',true);return;}
+  if(editActId){
+    data.activities[data.activities.findIndex(x=>x.id===editActId)]=a;
+    toast('活動を更新しました ✓');
+  } else {
+    data.activities.push(a);
+    toast('活動を登録しました ✓');
+  }
+  data.activities.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+  closeActModal();
+  renderCalendar();
+}
+
+function deleteActivity(){
+  if(!confirm('この活動を削除しますか？'))return;
+  data.activities=data.activities.filter(a=>a.id!==editActId);
+  closeActModal(); renderCalendar(); toast('削除しました');
+}
+
+function duplicateActivity(){
+  if(!editActId)return;
+  const src=data.activities.find(x=>x.id===editActId);
+  if(!src)return;
+  closeActModal();
+  setTimeout(()=>{
+    editActId=null;
+    document.getElementById('modal-title-text').textContent='活動を複製（新規登録）';
+    document.getElementById('del-act-btn').style.display='none';
+    document.getElementById('copy-btn').style.display='none';
+    document.getElementById('conflict-warn').classList.remove('show');
+    document.getElementById('f-date').value=src.date;
+    document.getElementById('f-cat').value=src.category;
+    document.getElementById('f-type').value=src.actType;
+    document.getElementById('f-name').value=src.name||'';
+    document.getElementById('f-start').value=src.startTime;
+    document.getElementById('f-end').value=src.endTime;
+    document.getElementById('f-notes').value=src.notes||'';
+    setupVenueSelect(src.venue||'');
+    setupChips('staff-chips',data.staff.map(s=>s.name),src.staff||[]);
+    setupChips('vehicle-chips',data.vehicles,src.vehicles||[]);
+    buildPlayerSelectors(src.category, src.date, src.extraPlayers||[], src.absentPlayers||[]);
+    document.getElementById('act-modal').classList.add('open');
+    document.getElementById('act-modal-inner').scrollTop=0;
+    toast('複製しました。内容を確認して保存してください');
+  },300);
+}
+
+// ============================================================
+// PLAYER MASTER
+// ============================================================
+function openPlayerModal(id=null) {
+  editPlayerId = id;
+  const p = id ? data.players.find(x=>x.id===id) : null;
+
+  // Compute stats
+  let actCount=0, actMinutes=0, actDays=new Set(), maxConsec=0;
+  if (id) {
+    const myActs = (data.activities||[]).filter(a=>{
+      if(a.actType==='OFF') return false;
+      const inBase = a.category===p.category && !(a.absentPlayers||[]).includes(p.name);
+      const inExtra = (a.extraPlayers||[]).includes(p.name);
+      return inBase||inExtra;
+    });
+    myActs.forEach(a=>{
+      actCount++;
+      const start=a.startTime.split(':');const end=a.endTime.split(':');
+      actMinutes += (parseInt(end[0])*60+parseInt(end[1]))-(parseInt(start[0])*60+parseInt(start[1]));
+      actDays.add(a.date);
+    });
+    const days=[...actDays].sort();
+    let consec=1;
+    for(let i=1;i<days.length;i++){
+      const diff=(new Date(days[i])-new Date(days[i-1]))/86400000;
+      if(diff===1){consec++;maxConsec=Math.max(maxConsec,consec);}else consec=1;
+    }
+    if(days.length>0) maxConsec=Math.max(maxConsec,1);
+  }
+
+  // Player absences
+  const myAbs = id ? (data.absences||[]).filter(ab=>ab.playerName===p.name) : [];
+
+  document.getElementById('pm-title').textContent = p ? p.name : '選手を追加';
+  document.getElementById('pm-body').innerHTML = `
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group full"><label>氏名 *</label><input type="text" id="pm-name" value="${p?.name||''}" placeholder="氏名"></div>
+      <div class="form-group">
+        <label>学年</label>
+        <select id="pm-grade" onchange="syncCatFromGrade()">
+          <option value="中学3年"${p?.grade==='中学3年'?' selected':''}>中学3年</option>
+          <option value="中学2年"${p?.grade==='中学2年'?' selected':''}>中学2年</option>
+          <option value="中学1年"${p?.grade==='中学1年'?' selected':''}>中学1年</option>
+          <option value="小学6年"${p?.grade==='小学6年'?' selected':''}>小学6年</option>
+          <option value="小学5年"${p?.grade==='小学5年'?' selected':''}>小学5年</option>
+          <option value="小学4年"${p?.grade==='小学4年'?' selected':''}>小学4年</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>カテゴリー</label>
+        <select id="pm-cat">
+          <option value="U15"${p?.category==='U15'?' selected':''}>U15</option>
+          <option value="U14"${p?.category==='U14'?' selected':''}>U14</option>
+          <option value="U13"${p?.category==='U13'?' selected':''}>U13</option>
+          <option value="U12"${p?.category==='U12'?' selected':''}>U12</option>
+          <option value="U10"${p?.category==='U10'?' selected':''}>U10</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>メモ</label><textarea id="pm-notes" placeholder="ポジション・特記事項など">${p?.notes||''}</textarea></div>
+    </div>
+    ${id ? `
+    <hr class="divider">
+    <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px">📊 活動実績（全期間）</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <span class="stat-pill">活動回数 <b>${actCount}回</b></span>
+      <span class="stat-pill">活動時間 <b>${Math.floor(actMinutes/60)}h${actMinutes%60}m</b></span>
+      <span class="stat-pill">活動日数 <b>${actDays.size}日</b></span>
+      <span class="stat-pill">最大連続 <b>${maxConsec}日</b></span>
+    </div>
+    <hr class="divider">
+    <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px">🏖 休み期間</div>
+    <div id="pm-abs-list">
+      ${myAbs.length ? myAbs.map(ab=>`
+        <div class="abs-row">
+          <div class="abs-row-info">${ab.startDate} 〜 ${ab.endDate}<br><span style="color:var(--text-muted)">${ab.reason}</span></div>
+          <button class="btn btn-danger btn-sm" onclick="deleteAbsenceById('${ab.id}')">削除</button>
+        </div>`).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">休み登録なし</div>'}
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-sm" style="background:var(--surface2);border:1px solid var(--border)" onclick="openAbsFromPlayer('${p.name}')">＋ 休みを追加</button>
+    </div>
+    ` : ''}
+    <div class="form-actions">
+      <button class="btn btn-primary btn-sm" onclick="savePlayer()">保存</button>
+      <button class="btn btn-sm" style="background:var(--surface2);border:1px solid var(--border)" onclick="closePlayerModal()">キャンセル</button>
+      <div class="spacer"></div>
+      ${id ? `<button class="btn btn-danger btn-sm" onclick="deletePlayer()">削除</button>` : ''}
+    </div>
+  `;
+  document.getElementById('player-modal').classList.add('open');
+  document.getElementById('player-modal-inner').scrollTop=0;
+}
+
+function syncCatFromGrade() {
+  const grade=document.getElementById('pm-grade').value;
+  const map={'中学3年':'U15','中学2年':'U14','中学1年':'U13','小学6年':'U12','小学5年':'U12','小学4年':'U10'};
+  if(map[grade]) document.getElementById('pm-cat').value=map[grade];
+}
+
+function savePlayer() {
+  const name=document.getElementById('pm-name').value.trim();
+  if(!name){toast('氏名を入力してください',true);return;}
+  const p = {
+    id:      editPlayerId||'p'+Date.now(),
+    name,
+    grade:   document.getElementById('pm-grade').value,
+    category:document.getElementById('pm-cat').value,
+    notes:   document.getElementById('pm-notes').value,
+    actCount:0, actMinutes:0, actDays:[]
+  };
+  // preserve existing stats if editing
+  if(editPlayerId){
+    const old=data.players.find(x=>x.id===editPlayerId);
+    if(old){p.actCount=old.actCount||0;p.actMinutes=old.actMinutes||0;p.actDays=old.actDays||[];}
+    data.players[data.players.findIndex(x=>x.id===editPlayerId)]=p;
+  } else {
+    data.players.push(p);
+  }
+  closePlayerModal(); renderPlayerList(); toast('選手を保存しました ✓');
+}
+
+function deletePlayer() {
+  if(!confirm(`「${data.players.find(x=>x.id===editPlayerId)?.name}」を削除しますか？`))return;
+  data.players=data.players.filter(p=>p.id!==editPlayerId);
+  closePlayerModal(); renderPlayerList(); toast('削除しました');
+}
+
+function closePlayerModal(){document.getElementById('player-modal').classList.remove('open');editPlayerId=null;}
+function handlePlayerOverlay(e){if(e.target===document.getElementById('player-modal'))closePlayerModal();}
+
+function openAbsFromPlayer(playerName) {
+  closePlayerModal();
+  setTimeout(()=>{
+    // Switch to absences tab and pre-fill player
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.querySelector('[onclick*="absences"]').classList.add('active');
+    document.getElementById('tab-absences').classList.add('active');
+    openAbsForm(null, playerName);
+  },320);
+}
+
+function renderPlayerList() {
+  const el=document.getElementById('player-list');
+  // Summary pills
+  const sumEl=document.getElementById('player-summary');
+  sumEl.innerHTML=['U15','U14','U13','U12','U10'].map(cat=>{
+    const cnt=data.players.filter(p=>p.category===cat).length;
+    if(!cnt)return'';
+    return`<span class="stat-pill" style="border-color:${CAT_COLOR[cat]}22"><span style="color:${CAT_COLOR[cat]};font-weight:700">${cat}</span> <b>${cnt}名</b></span>`;
+  }).join('');
+
+  const groups={};
+  data.players.forEach(p=>{if(!groups[p.category])groups[p.category]=[];groups[p.category].push(p);});
+  el.innerHTML=['U15','U14','U13','U12','U10'].filter(c=>groups[c]).map(cat=>{
+    const col=CAT_COLOR[cat];
+    return `<div style="margin-bottom:16px">
+      <div class="grade-header" style="color:${col}">${cat}（${GRADE_MAP[cat]||''}）— ${groups[cat].length}名</div>
+      ${groups[cat].map(p=>{
+        // count absences
+        const absCount=(data.absences||[]).filter(ab=>ab.playerName===p.name).length;
+        return `<div class="player-card" style="margin-bottom:5px" onclick="openPlayerModal('${p.id}')">
+          <div class="player-avatar" style="background:${CAT_BG[cat]};color:${col}">${p.name.charAt(0)}</div>
+          <div class="player-info">
+            <div class="player-name">${p.name}</div>
+            <div class="player-meta">
+              <span>${p.grade||cat}</span>
+              ${absCount?`<span style="color:var(--yellow)">🏖 休み${absCount}件</span>`:''}
+            </div>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted)">▶</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('')||'<div style="padding:16px;text-align:center;color:var(--text-muted)">選手データなし</div>';
+}
+
+// ============================================================
+// STAFF
+// ============================================================
+let editStaffId=null;
+function openStaffForm(id=null){
+  editStaffId=id;
+  document.getElementById('staff-subform').style.display='block';
+  document.getElementById('del-staff-btn').style.display=id?'inline-flex':'none';
+  const s=id?data.staff.find(x=>x.id===id):null;
+  document.getElementById('sf-name').value=s?.name||'';
+  document.getElementById('sf-role').value=s?.role||'コーチ';
+}
+function saveStaff(){
+  const name=document.getElementById('sf-name').value.trim();
+  if(!name){toast('名前を入力してください',true);return;}
+  const s={id:editStaffId||'s'+Date.now(),name,role:document.getElementById('sf-role').value};
+  if(editStaffId) data.staff[data.staff.findIndex(x=>x.id===editStaffId)]=s;
+  else data.staff.push(s);
+  document.getElementById('staff-subform').style.display='none';
+  editStaffId=null; renderStaffList(); toast('スタッフを保存しました ✓');
+}
+function deleteStaff(){
+  if(!confirm('削除しますか？'))return;
+  data.staff=data.staff.filter(s=>s.id!==editStaffId);
+  document.getElementById('staff-subform').style.display='none';
+  editStaffId=null; renderStaffList(); toast('削除しました');
+}
+function renderStaffList(){
+  document.getElementById('staff-list').innerHTML=data.staff.map(s=>`
+    <div class="item-card" onclick="openStaffForm('${s.id}')">
+      <div><div class="item-name">${s.name}</div><div class="item-sub">${s.role}</div></div>
+      <span style="font-size:11px;color:var(--text-muted)">編集</span>
+    </div>`).join('')||'<div style="padding:16px;text-align:center;color:var(--text-muted)">スタッフデータなし</div>';
+}
+
+// ============================================================
+// ABSENCES
+// ============================================================
+let editAbsId=null;
+function openAbsForm(id=null, presetPlayer=null){
+  editAbsId=id;
+  document.getElementById('abs-form').style.display='block';
+  document.getElementById('del-abs-btn').style.display=id?'inline-flex':'none';
+  const sel=document.getElementById('abf-player');
+  sel.innerHTML=data.players.map(p=>`<option value="${p.name}">${p.category} ${p.name}</option>`).join('');
+  const ab=id?data.absences.find(x=>x.id===id):null;
+  if(ab){sel.value=ab.playerName;document.getElementById('abf-start').value=ab.startDate;document.getElementById('abf-end').value=ab.endDate;document.getElementById('abf-reason').value=ab.reason;}
+  else{
+    if(presetPlayer) sel.value=presetPlayer;
+    document.getElementById('abf-start').value='';
+    document.getElementById('abf-end').value='';
+    document.getElementById('abf-reason').value='家族旅行';
+  }
+}
+function saveAbsence(){
+  const pn=document.getElementById('abf-player').value;
+  const s=document.getElementById('abf-start').value;
+  const e=document.getElementById('abf-end').value;
+  if(!pn||!s||!e){toast('必須項目を入力してください',true);return;}
+  const ab={id:editAbsId||'ab'+Date.now(),playerName:pn,startDate:s,endDate:e,reason:document.getElementById('abf-reason').value};
+  if(editAbsId) data.absences[data.absences.findIndex(x=>x.id===editAbsId)]=ab;
+  else data.absences.push(ab);
+  document.getElementById('abs-form').style.display='none';
+  editAbsId=null; renderAbsList(); renderPlayerList(); toast('休み情報を保存しました ✓');
+}
+function deleteAbsence(){
+  if(!confirm('削除しますか？'))return;
+  data.absences=data.absences.filter(a=>a.id!==editAbsId);
+  document.getElementById('abs-form').style.display='none';
+  editAbsId=null; renderAbsList(); renderPlayerList(); toast('削除しました');
+}
+function deleteAbsenceById(id){
+  if(!confirm('この休みを削除しますか？'))return;
+  data.absences=data.absences.filter(a=>a.id!==id);
+  renderAbsList(); renderPlayerList();
+  // refresh player modal
+  if(editPlayerId) openPlayerModal(editPlayerId);
+  toast('削除しました');
+}
+function renderAbsList(){
+  const el=document.getElementById('abs-list');
+  if(!data.absences.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text-muted)">休みデータなし</div>';return;}
+  el.innerHTML=[...data.absences].sort((a,b)=>a.startDate.localeCompare(b.startDate)).map(ab=>`
+    <div class="item-card" onclick="openAbsForm('${ab.id}')">
+      <div><div class="item-name">${ab.playerName}</div><div class="item-sub">${ab.startDate} 〜 ${ab.endDate} ／ ${ab.reason}</div></div>
+      <span style="font-size:11px;color:var(--text-muted)">編集</span>
+    </div>`).join('');
+}
+
+// ============================================================
+// VENUES / VEHICLES
+// ============================================================
+function addVenue(){const v=document.getElementById('venue-input').value.trim();if(!v||data.venues.includes(v)){toast('すでに存在します',true);return;}data.venues.push(v);document.getElementById('venue-input').value='';renderVenueList();}
+function removeVenue(v){data.venues=data.venues.filter(x=>x!==v);renderVenueList();}
+function renderVenueList(){document.getElementById('venue-list').innerHTML=data.venues.map(v=>`<div class="item-card"><div class="item-name">📍 ${v}</div><button class="btn btn-danger btn-sm" onclick="removeVenue('${v}')">削除</button></div>`).join('');}
+function addVehicle(){const v=document.getElementById('veh-input').value.trim();if(!v||data.vehicles.includes(v)){toast('すでに存在します',true);return;}data.vehicles.push(v);document.getElementById('veh-input').value='';renderVehList();}
+function removeVehicle(v){data.vehicles=data.vehicles.filter(x=>x!==v);renderVehList();}
+function renderVehList(){document.getElementById('veh-list').innerHTML=data.vehicles.map(v=>`<div class="item-card"><div class="item-name">🚐 ${v}</div><button class="btn btn-danger btn-sm" onclick="removeVehicle('${v}')">削除</button></div>`).join('');}
+
+// ============================================================
+// SETTINGS / EXPORT
+// ============================================================
+function saveSettings(){cfg.binId=document.getElementById('s-binid').value.trim();cfg.apiKey=document.getElementById('s-apikey').value.trim();localStorage.setItem(CONFIG_KEY,JSON.stringify(cfg));toast('設定を保存しました');updateSaveStatus();}
+function exportData(){const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`planner_${new Date().toISOString().slice(0,10)}.json`;a.click();}
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>
