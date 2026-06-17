@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>チーム閲覧 | 山梨県U15リーグ</title>
+<!-- 設定・ストレージ -->
+<script src="config.js"></script>
+<script src="storage.js"></script>
+<style>
+:root{
+  --blue:#003087;--blue-d:#001f5c;--blue-l:#0050c8;
+  --accent:#e8001e;--gold:#c8a000;--green:#006830;
+  --bg:#f0f2f7;--card:#fff;--text:#1a1a2e;--sub:#5a5a7a;--border:#d0d4e0;
+  --r:10px;--sh:0 2px 14px rgba(0,48,135,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* ─── ログイン画面 ─── */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:linear-gradient(160deg,var(--blue-d) 0%,var(--blue) 60%,var(--blue-l) 100%)}
+.login-box{background:#fff;border-radius:16px;padding:36px 28px;width:100%;max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo .emblem{width:64px;height:64px;background:var(--blue);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:10px}
+.login-logo h1{font-size:15px;color:var(--blue);font-weight:700;margin-bottom:3px}
+.login-logo p{font-size:12px;color:var(--sub)}
+.login-note{background:#f0f3fa;border-radius:8px;padding:10px 14px;font-size:12px;color:var(--sub);margin-bottom:18px;line-height:1.6}
+.form-g{margin-bottom:14px}
+.form-g label{display:block;font-size:12px;font-weight:600;color:var(--sub);margin-bottom:5px}
+.form-g select,.form-g input{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text)}
+.form-g select:focus,.form-g input:focus{outline:none;border-color:var(--blue)}
+.btn-login{width:100%;padding:13px;border:none;background:var(--blue);color:#fff;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;font-family:inherit}
+.btn-login:active{background:var(--blue-l)}
+.login-error{color:var(--accent);font-size:12px;text-align:center;margin-top:10px;display:none}
+
+/* ─── アプリシェル ─── */
+.app{display:none}
+.app.show{display:block}
+
+/* ─── ヘッダー ─── */
+.header{background:var(--blue);position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:54px}
+.header-brand{color:#fff}
+.header-brand .league-name{font-size:10px;opacity:.7;font-weight:400}
+.header-brand .team-name{font-size:14px;font-weight:700}
+.header-right{display:flex;align-items:center;gap:8px}
+.btn-logout-s{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
+
+/* ─── タブナビ ─── */
+.tab-nav{background:var(--blue-d);overflow-x:auto;display:flex;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{flex:none;padding:10px 16px;border:none;background:none;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;font-family:inherit}
+.tab-btn.active{color:#fff;border-bottom-color:var(--accent)}
+
+/* ─── コンテンツ ─── */
+.main{max-width:800px;margin:0 auto;padding:14px 12px 80px}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* ─── カード ─── */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:14px;overflow:hidden}
+.card-head{background:var(--blue);color:#fff;padding:11px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-pad{padding:16px}
+.empty{text-align:center;padding:36px 16px;color:var(--sub)}
+.empty .ei{font-size:36px;margin-bottom:8px}
+
+/* ─── テーブル ─── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:#f0f3fa;color:var(--sub);font-weight:700;font-size:11px;padding:8px 10px;border-bottom:2px solid var(--border);text-align:left}
+.tbl td{padding:9px 10px;border-bottom:1px solid #eef0f5;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f8f9fc}
+.tbl .num{text-align:center}
+.tbl .pts{font-weight:700;color:var(--blue);font-size:14px;text-align:center}
+
+/* ─── バッジ ─── */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.b-blue{background:#e8f0ff;color:var(--blue)}
+.b-red{background:#ffe8ea;color:var(--accent)}
+.b-green{background:#e6f7ed;color:var(--green)}
+.b-gold{background:#fff8e0;color:var(--gold)}
+.b-gray{background:#f0f2f7;color:var(--sub)}
+
+/* ─── 試合リスト ─── */
+.match-item{padding:12px 16px;border-bottom:1px solid #eef0f5}
+.match-item:last-child{border-bottom:none}
+.match-meta{font-size:11px;color:var(--sub);margin-bottom:6px;display:flex;gap:10px;flex-wrap:wrap}
+.match-score-row{display:flex;align-items:center;gap:8px}
+.match-team{flex:1;font-weight:700;font-size:13px}
+.match-team.home{text-align:right}
+.match-score{background:var(--blue);color:#fff;font-weight:700;font-size:15px;padding:4px 12px;border-radius:6px;min-width:56px;text-align:center}
+.match-score.upcoming{background:#eef0f5;color:var(--sub);font-size:12px;font-weight:400}
+.my-match .match-item{background:#f0f6ff}
+
+/* ─── お知らせ ─── */
+.notice-item{padding:14px 16px;border-bottom:1px solid #eef0f5}
+.notice-item:last-child{border-bottom:none}
+.notice-title{font-size:13px;font-weight:700;margin-top:4px}
+.notice-date{font-size:11px;color:var(--sub);margin-top:2px}
+.notice-body{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.7}
+
+/* ─── 警告・停止リスト ─── */
+.disc-item{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid #eef0f5;gap:12px}
+.disc-item:last-child{border-bottom:none}
+
+/* ─── リーグ選択 ─── */
+.league-chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.league-chips::-webkit-scrollbar{display:none}
+.lchip{flex:none;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--sub);cursor:pointer}
+.lchip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* ─── トースト ─── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 22px;border-radius:24px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+/* ─── 自チームハイライト ─── */
+.my-team-row{background:#e8f0ff!important;font-weight:700}
+
+/* ─── 選手カード ─── */
+.pos-gk td:first-child::before{content:'GK ';color:var(--accent);font-size:10px;font-weight:700}
+.pos-df td:first-child::before{content:'DF ';color:var(--green);font-size:10px;font-weight:700}
+.pos-mf td:first-child::before{content:'MF ';color:var(--blue);font-size:10px;font-weight:700}
+.pos-fw td:first-child::before{content:'FW ';color:var(--gold);font-size:10px;font-weight:700}
+
+/* ─── 勝敗表 ─── */
+.wdl-wrap{overflow-x:auto}
+.wdl-tbl{border-collapse:collapse;font-size:11px;min-width:300px}
+.wdl-tbl th{background:var(--blue);color:#fff;padding:7px 8px;border:1px solid rgba(255,255,255,.2);text-align:center;white-space:nowrap}
+.wdl-tbl td{border:1px solid var(--border);padding:7px 8px;text-align:center;vertical-align:middle}
+.wdl-tbl .team-col{text-align:left;padding-left:10px;font-weight:600;white-space:nowrap}
+.wdl-w{background:#e6f7ed;color:var(--green);font-weight:700}
+.wdl-d{background:#fff8e0;color:var(--gold);font-weight:700}
+.wdl-l{background:#fff0f0;color:var(--accent);font-weight:700}
+.wdl-self{background:#e8f0ff}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ─── ログイン ─── -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="emblem">⚽</div>
+      <h1>山梨県サッカー協会</h1>
+      <p>U15リーグ チーム閲覧システム</p>
+    </div>
+    <div class="login-note">
+      📋 このページはチーム代表者・監督専用です。<br>
+      チームを選択してパスワードを入力してください。
+    </div>
+    <div class="form-g">
+      <label>チームを選択</label>
+      <select id="loginTeamSel">
+        <option value="">-- チームを選択 --</option>
+      </select>
+    </div>
+    <div class="form-g">
+      <label>パスワード</label>
+      <input type="password" id="loginPass" placeholder="チームパスワード"
+        onkeydown="if(event.key==='Enter')doTeamLogin()">
+    </div>
+    <button class="btn-login" onclick="doTeamLogin()">ログイン</button>
+    <div class="login-error" id="loginError">チームまたはパスワードが違います</div>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--sub)">
+      デモ: 任意のチームを選択 → パスワード「team1234」
+    </div>
+  </div>
+</div>
+
+<!-- ─── アプリ ─── -->
+<div class="app" id="app">
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="league-name" id="headerLeague">U15 Aリーグ</div>
+        <div class="team-name" id="headerTeam">チーム名</div>
+      </div>
+      <div class="header-right">
+        <button class="btn-logout-s" onclick="doLogout()">ログアウト</button>
+      </div>
+    </div>
+    <nav class="tab-nav">
+      <button class="tab-btn active" onclick="showTab(this,'schedule')">📅 日程・結果</button>
+      <button class="tab-btn" onclick="showTab(this,'standings')">🏆 順位表</button>
+      <button class="tab-btn" onclick="showTab(this,'wdl')">📊 勝敗表</button>
+      <button class="tab-btn" onclick="showTab(this,'scorers')">⚽ 得点</button>
+      <button class="tab-btn" onclick="showTab(this,'myteam')">👤 自チーム</button>
+      <button class="tab-btn" onclick="showTab(this,'notices')">📢 お知らせ</button>
+    </nav>
+  </header>
+
+  <div class="main">
+
+    <!-- 日程・結果 -->
+    <div class="tab-pane active" id="tab-schedule">
+      <div class="card">
+        <div class="card-head">📅 試合日程・結果</div>
+        <div id="scheduleList"></div>
+      </div>
+    </div>
+
+    <!-- 順位表 -->
+    <div class="tab-pane" id="tab-standings">
+      <div class="card">
+        <div class="card-head">🏆 順位表</div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th class="num">#</th><th>チーム</th>
+              <th class="num">試</th><th class="num">勝</th><th class="num">分</th><th class="num">敗</th>
+              <th class="num">得</th><th class="num">失</th><th class="num">差</th><th class="num">点</th>
+            </tr></thead>
+            <tbody id="standingsBody"></tbody>
+          </table>
+        </div>
+        <div style="padding:8px 12px;font-size:11px;color:var(--sub);background:#f8f9fc">
+          ※ 同勝点：得失点差 → 総得点の順
+        </div>
+      </div>
+    </div>
+
+    <!-- 勝敗表 -->
+    <div class="tab-pane" id="tab-wdl">
+      <div class="card">
+        <div class="card-head">📊 勝敗表</div>
+        <div class="wdl-wrap" id="wdlWrap">
+          <div class="empty"><div class="ei">📊</div><p>試合結果がありません</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 得点ランキング -->
+    <div class="tab-pane" id="tab-scorers">
+      <div class="card">
+        <div class="card-head">⚽ 得点ランキング</div>
+        <div id="scorersList"></div>
+      </div>
+    </div>
+
+    <!-- 自チーム -->
+    <div class="tab-pane" id="tab-myteam">
+      <!-- 選手一覧 -->
+      <div class="card">
+        <div class="card-head">👤 自チーム選手一覧</div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th class="num">#</th><th>氏名</th><th class="num">学年</th><th class="num">Pos</th></tr></thead>
+            <tbody id="myPlayersBody"></tbody>
+          </table>
+        </div>
+        <div style="padding:8px 12px;font-size:11px;color:var(--sub);background:#f8f9fc">
+          ★ = プロテクト選手　/ 選手登録番号・生年月日は管理者のみ閲覧可
+        </div>
+      </div>
+      <!-- 警告一覧（自チームのみ） -->
+      <div class="card">
+        <div class="card-head">🟨 自チーム警告一覧</div>
+        <div id="myBookingsList">
+          <div class="empty"><div class="ei">🟨</div><p>警告なし</p></div>
+        </div>
+      </div>
+      <!-- 退場一覧（自チームのみ） -->
+      <div class="card">
+        <div class="card-head">🟥 自チーム退場一覧</div>
+        <div id="mySendoffsList">
+          <div class="empty"><div class="ei">🟥</div><p>退場なし</p></div>
+        </div>
+      </div>
+      <!-- 出場停止（自チームのみ） -->
+      <div class="card">
+        <div class="card-head">🚫 出場停止</div>
+        <div id="mySuspList">
+          <div class="empty"><div class="ei">✅</div><p>出場停止選手なし</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- お知らせ -->
+    <div class="tab-pane" id="tab-notices">
+      <div class="card">
+        <div class="card-head">📢 委員会からのお知らせ</div>
+        <div id="noticesList">
+          <div class="empty"><div class="ei">📢</div><p>お知らせなし</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA LAYER（Storage は storage.js が提供）
+// ═══════════════════════════════════════════════
+const TEAM_LOGIN_KEY = 'teamLoggedIn';
+const TEAM_PASS = 'team1234'; // デモ用共通パスワード
+
+// ─── デフォルトDB ─────────────────────────────────────────
+const DEFAULT_DB = {
+  leagues:[{id:'u15a',name:'U15 Aリーグ'},{id:'u15b',name:'U15 Bリーグ'}],
+  teams:[],players:[],matches:[],results:[],suspensions:[],notices:[],venues:[]
+};
+
+let DB = JSON.parse(JSON.stringify(DEFAULT_DB));
+
+async function initDB(){
+  const s = await Storage.load();
+  if(s){
+    DB = {
+      leagues:     s.leagues     || DEFAULT_DB.leagues,
+      teams:       s.teams       || [],
+      players:     s.players     || [],
+      matches:     s.matches     || [],
+      results:     s.results     || [],
+      suspensions: s.suspensions || [],
+      notices:     s.notices     || [],
+      venues:      s.venues      || [],
+    };
+  }
+}
+
+let myTeamId = null;
+let myLeagueId = null;
+
+// ─── ログイン ────────────────────────────────────────────
+async function initLogin(){
+  await initDB();
+
+  // チームリストをselect に反映
+  const sel=document.getElementById('loginTeamSel');
+  sel.innerHTML='<option value="">-- チームを選択 --</option>'+
+    DB.teams.map(t=>`<option value="${t.id}">${t.name}（${DB.leagues.find(l=>l.id===t.league)?.name||''}）</option>`).join('');
+
+  // セッション復元
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(TEAM_LOGIN_KEY)||'null');
+    if(saved?.teamId && DB.teams.find(t=>t.id===saved.teamId)){
+      myTeamId=saved.teamId;
+      startApp();
+      return;
+    }
+  }catch(e){}
+}
+
+function doTeamLogin(){
+  const tid=document.getElementById('loginTeamSel').value;
+  const pass=document.getElementById('loginPass').value;
+  if(!tid){ alert('チームを選択してください'); return; }
+  const team=DB.teams.find(t=>t.id===tid);
+  const ok = pass===TEAM_PASS || pass===(team?.password||TEAM_PASS);
+  if(!ok){
+    document.getElementById('loginError').style.display='block';
+    return;
+  }
+  myTeamId=tid;
+  sessionStorage.setItem(TEAM_LOGIN_KEY,JSON.stringify({teamId:tid}));
+  startApp();
+}
+
+function doLogout(){
+  sessionStorage.removeItem(TEAM_LOGIN_KEY);
+  myTeamId=null; myLeagueId=null;
+  location.reload();
+}
+
+async function startApp(){
+  // ログイン後に最新DBを再取得（schedule.htmlで更新されている可能性）
+  await initDB();
+  const team=DB.teams.find(t=>t.id===myTeamId);
+  if(!team){ location.reload(); return; }
+  myLeagueId=team.league;
+  document.getElementById('loginWrap').style.display='none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('headerTeam').textContent=team.name;
+  document.getElementById('headerLeague').textContent=DB.leagues.find(l=>l.id===myLeagueId)?.name||'';
+  renderAll();
+}
+
+// ─── タブ ────────────────────────────────────────────────
+function showTab(btn, name){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  // 遅延レンダリング
+  const renders={standings:renderStandings,wdl:renderWdl,scorers:renderScorers,myteam:renderMyTeam,notices:renderNotices,schedule:renderSchedule};
+  (renders[name]||(() => {}))();
+}
+
+// ─── 全レンダリング ──────────────────────────────────────
+function renderAll(){
+  renderSchedule();
+  renderStandings();
+  renderWdl();
+  renderScorers();
+  renderMyTeam();
+  renderNotices();
+}
+
+// ─── 日程・結果 ──────────────────────────────────────────
+function renderSchedule(){
+  const matches=DB.matches.filter(m=>m.league===myLeagueId)
+    .sort((a,b)=>(a.round-b.round)||(a.matchNo-b.matchNo));
+  if(!matches.length){
+    document.getElementById('scheduleList').innerHTML='<div class="empty"><div class="ei">📅</div><p>日程がありません</p></div>';
+    return;
+  }
+  let html=''; let lastRound=0;
+  matches.forEach(m=>{
+    if(m.round!==lastRound){
+      if(lastRound) html+='</div>';
+      const rDate=m.date?`${fmtDate(m.date)}（${getDayName(m.date)}）`:'日程未定';
+      html+=`<div style="background:#f0f3fa;padding:6px 16px;font-size:11px;font-weight:700;color:var(--blue);border-bottom:1px solid #eef0f5">第${m.round}節　${rDate}</div><div>`;
+      lastRound=m.round;
+    }
+    const h=DB.teams.find(t=>t.id===m.home)?.name||'?';
+    const a=DB.teams.find(t=>t.id===m.away)?.name||'?';
+    const isMyMatch=m.home===myTeamId||m.away===myTeamId;
+    const score=m.status==='done'
+      ?`<span class="match-score">${m.homeGoal} - ${m.awayGoal}</span>`
+      :`<span class="match-score upcoming">${m.time||'TBD'}</span>`;
+    html+=`<div class="match-item${isMyMatch?' my-match':''}">
+      <div class="match-meta">
+        ${m.venue?`🏟️ ${m.venue}`:''}
+        ${isMyMatch?'<span style="color:var(--blue);font-weight:700">★ 自チーム試合</span>':''}
+      </div>
+      <div class="match-score-row">
+        <div class="match-team home">${h}</div>
+        ${score}
+        <div class="match-team">${a}</div>
+      </div>
+    </div>`;
+  });
+  if(lastRound) html+='</div>';
+  document.getElementById('scheduleList').innerHTML=html;
+}
+
+// ─── 順位表 ──────────────────────────────────────────────
+function calcStandings(){
+  const teams=DB.teams.filter(t=>t.league===myLeagueId);
+  const matches=DB.matches.filter(m=>m.league===myLeagueId&&m.status==='done');
+  const st={};
+  teams.forEach(t=>{st[t.id]={gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0};});
+  matches.forEach(m=>{
+    if(!st[m.home]||!st[m.away])return;
+    const h=st[m.home],a=st[m.away];
+    h.gp++;a.gp++;h.gf+=m.homeGoal;h.ga+=m.awayGoal;a.gf+=m.awayGoal;a.ga+=m.homeGoal;
+    if(m.homeGoal>m.awayGoal){h.w++;h.pts+=3;a.l++;}
+    else if(m.homeGoal<m.awayGoal){a.w++;a.pts+=3;h.l++;}
+    else{h.d++;a.d++;h.pts++;a.pts++;}
+  });
+  return teams.map(t=>({...t,...st[t.id],gd:(st[t.id]?.gf||0)-(st[t.id]?.ga||0)}))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+}
+
+function renderStandings(){
+  const rows=calcStandings();
+  const rankCls=['🥇','🥈','🥉'];
+  document.getElementById('standingsBody').innerHTML=rows.map((t,i)=>`
+    <tr class="${t.id===myTeamId?'my-team-row':''}">
+      <td class="num">${rankCls[i]||i+1}</td>
+      <td>${t.name}${t.id===myTeamId?' <span style="font-size:10px;color:var(--blue)">◀ 自チーム</span>':''}</td>
+      <td class="num">${t.gp}</td><td class="num">${t.w}</td><td class="num">${t.d}</td><td class="num">${t.l}</td>
+      <td class="num">${t.gf}</td><td class="num">${t.ga}</td>
+      <td class="num">${t.gd>=0?'+':''}${t.gd}</td>
+      <td class="pts">${t.pts}</td>
+    </tr>`).join('')||'<tr><td colspan="10" class="empty" style="padding:20px;">データなし</td></tr>';
+}
+
+// ─── 勝敗表 ──────────────────────────────────────────────
+function renderWdl(){
+  const sorted=calcStandings();
+  if(!sorted.length){ document.getElementById('wdlWrap').innerHTML='<div class="empty"><p>データなし</p></div>'; return; }
+  const mat={};
+  DB.matches.filter(m=>m.league===myLeagueId&&m.status==='done').forEach(m=>{
+    mat[`${m.home}_${m.away}`]={hg:m.homeGoal,ag:m.awayGoal};
+  });
+  const n=sorted.length;
+  let html=`<table class="wdl-tbl" style="min-width:${100+n*60}px">
+    <thead><tr>
+      <th style="text-align:left;padding-left:10px;min-width:100px">チーム</th>
+      ${sorted.map((t,i)=>`<th style="min-width:56px;font-size:10px">${t.short||t.name.slice(0,4)}</th>`).join('')}
+      <th>点</th><th>差</th><th>#</th>
+    </tr></thead><tbody>`;
+  sorted.forEach((row,ri)=>{
+    const cells=sorted.map((col,ci)=>{
+      if(ri===ci) return '<td class="wdl-self">―</td>';
+      const r1=mat[`${row.id}_${col.id}`],r2=mat[`${col.id}_${row.id}`];
+      if(r1){ const w=r1.hg>r1.ag,d=r1.hg===r1.ag; return `<td class="${w?'wdl-w':d?'wdl-d':'wdl-l'}">${w?'○':d?'△':'×'}<br><span style="font-size:10px;font-weight:400">${r1.hg}-${r1.ag}</span></td>`; }
+      if(r2){ const w=r2.ag>r2.hg,d=r2.ag===r2.hg; return `<td class="${w?'wdl-w':d?'wdl-d':'wdl-l'}">${w?'○':d?'△':'×'}<br><span style="font-size:10px;font-weight:400">${r2.ag}-${r2.hg}</span></td>`; }
+      return '<td style="color:var(--sub);font-size:11px">未定</td>';
+    }).join('');
+    const isMe=row.id===myTeamId;
+    html+=`<tr style="${isMe?'background:#e8f0ff;font-weight:700':''}">
+      <td class="team-col">${isMe?'▶ ':'' }${row.name}</td>${cells}
+      <td style="font-weight:700;color:var(--blue);text-align:center">${row.pts}</td>
+      <td style="text-align:center;font-size:12px">${row.gd>=0?'+':''}${row.gd}</td>
+      <td style="text-align:center;font-size:12px">${ri+1}</td>
+    </tr>`;
+  });
+  html+='</tbody></table><div style="padding:8px 12px;font-size:11px;color:var(--sub)">○=勝 △=引分 ×=負（縦軸チームの視点）</div>';
+  document.getElementById('wdlWrap').innerHTML=html;
+}
+
+// ─── 得点ランキング ──────────────────────────────────────
+function renderScorers(){
+  const tally={};
+  DB.matches.filter(m=>m.league===myLeagueId&&m.status==='done').forEach(m=>{
+    (m.scorers||[]).forEach(s=>{
+      const p=DB.players.find(x=>x.id===s.playerId);
+      const t=DB.teams.find(x=>x.id===s.teamId);
+      const key=s.playerId||(`noId_${s.teamId}`);
+      if(!tally[key]) tally[key]={name:p?.name||'?',team:t?.name||'?',teamId:s.teamId,goals:0};
+      tally[key].goals+=s.count||1;
+    });
+  });
+  const list=Object.values(tally).sort((a,b)=>b.goals-a.goals);
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('scorersList').innerHTML=list.length?list.map((s,i)=>`
+    <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #eef0f5;gap:14px;${s.teamId===myTeamId?'background:#e8f0ff':''}">
+      <div style="font-size:20px;min-width:28px;text-align:center">${medals[i]||i+1}</div>
+      <div style="flex:1"><div style="font-weight:700">${s.name}</div><div style="font-size:11px;color:var(--sub)">${s.team}</div></div>
+      <div style="font-size:22px;font-weight:700;color:var(--blue)">${s.goals}<span style="font-size:11px;font-weight:400;color:var(--sub)"> 得点</span></div>
+    </div>`).join('')
+    :'<div class="empty"><div class="ei">⚽</div><p>得点データなし</p></div>';
+}
+
+// ─── 自チーム ────────────────────────────────────────────
+function renderMyTeam(){
+  // 選手一覧
+  const players=DB.players.filter(p=>p.teamId===myTeamId)
+    .sort((a,b)=>(posOrder[a.pos]||9)-(posOrder[b.pos]||9)||(a.num||99)-(b.num||99));
+  const posOrder={GK:0,DF:1,MF:2,FW:3};
+  document.getElementById('myPlayersBody').innerHTML=players.length?players.map(p=>`
+    <tr class="pos-${p.pos?.toLowerCase()||'xx'}">
+      <td class="num" style="font-weight:700">${p.num||'-'}</td>
+      <td>${p.name}${p.protected?' <span class="badge b-red">★P</span>':''}</td>
+      <td class="num">中${p.grade}年</td>
+      <td class="num"><span class="badge ${p.pos==='GK'?'b-red':p.pos==='DF'?'b-green':p.pos==='MF'?'b-blue':'b-gold'}">${p.pos||'-'}</span></td>
+    </tr>`)
+    .join('')
+    :'<tr><td colspan="4" class="empty" style="padding:20px">選手データなし（名簿インポートで追加）</td></tr>';
+
+  // 警告一覧（自チームのみ）
+  const bCount={};
+  DB.matches.filter(m=>m.status==='done').forEach(m=>{
+    (m.bookings||[]).forEach(b=>{
+      if(b.type==='Y'&&b.teamId===myTeamId){
+        if(!bCount[b.playerId])bCount[b.playerId]={count:0};
+        bCount[b.playerId].count++;
+      }
+    });
+  });
+  const bRows=Object.entries(bCount).map(([pid,v])=>{
+    const p=DB.players.find(x=>x.id===pid);
+    return{name:p?.name||'?',count:v.count};
+  }).sort((a,b)=>b.count-a.count);
+  document.getElementById('myBookingsList').innerHTML=bRows.length?bRows.map(r=>`
+    <div class="disc-item">
+      <span class="badge ${r.count>=3?'b-red':r.count>=2?'b-gold':'b-gray'}">🟨 ${r.count}枚</span>
+      <div style="flex:1;font-weight:600">${r.name}</div>
+      ${r.count>=3?'<span class="badge b-red">停止対象</span>':r.count>=2?'<span class="badge b-gold">注意</span>':''}
+    </div>`).join('')
+    :'<div class="empty"><div class="ei">🟨</div><p>警告なし</p></div>';
+
+  // 退場一覧（自チームのみ）
+  const myS=[];
+  DB.matches.filter(m=>m.status==='done')
+    .sort((a,b)=>(a.round-b.round)||(a.matchNo-b.matchNo))
+    .forEach(m=>{
+      (m.sendoffs||[]).forEach(s=>{
+        if(s.teamId===myTeamId){
+          const p=DB.players.find(x=>x.id===s.playerId);
+          myS.push({name:p?.name||'?',date:m.date||'',round:m.round||'?',reason:s.reason});
+        }
+      });
+    });
+  document.getElementById('mySendoffsList').innerHTML=myS.length?myS.map(s=>`
+    <div class="disc-item">
+      <span class="badge b-red">🟥</span>
+      <div style="flex:1"><div style="font-weight:600">${s.name}</div>
+        <div style="font-size:11px;color:var(--sub)">第${s.round}節 ${s.date} / ${s.reason==='2Y'?'2枚退場':'直接退場'}</div></div>
+    </div>`).join('')
+    :'<div class="empty"><div class="ei">🟥</div><p>退場なし</p></div>';
+
+  // 出場停止（自チームのみ）
+  const mySusp=(DB.suspensions||[]).filter(s=>s.teamId===myTeamId);
+  document.getElementById('mySuspList').innerHTML=mySusp.length?mySusp.map(s=>`
+    <div class="disc-item">
+      <span class="badge b-red">🚫 停止</span>
+      <div style="flex:1"><div style="font-weight:600">${s.playerName||'?'}</div>
+        <div style="font-size:11px;color:var(--sub)">${s.reason} → 第${s.suspRound}節出場停止</div></div>
+    </div>`).join('')
+    :'<div class="empty"><div class="ei">✅</div><p>出場停止選手なし</p></div>';
+}
+
+// ─── お知らせ ─────────────────────────────────────────────
+function renderNotices(){
+  const tagMap={info:'b-blue',important:'b-red',doc:'b-green'};
+  const tagLabel={info:'お知らせ',important:'重要',doc:'要項・通達'};
+  document.getElementById('noticesList').innerHTML=(DB.notices||[]).length
+    ?(DB.notices).map(n=>`
+      <div class="notice-item">
+        <span class="badge ${tagMap[n.tag]||'b-blue'}">${tagLabel[n.tag]||'お知らせ'}</span>
+        <div class="notice-title">${n.title}</div>
+        <div class="notice-date">${n.date}</div>
+        <div class="notice-body">${n.body||''}</div>
+      </div>`).join('')
+    :'<div class="empty"><div class="ei">📢</div><p>お知らせなし</p></div>';
+}
+
+// ─── UTILS ───────────────────────────────────────────────
+function fmtDate(s){
+  if(!s)return'';const d=new Date(s);
+  return isNaN(d)?s:`${d.getMonth()+1}/${d.getDate()}`;
+}
+function getDayName(s){
+  const d=new Date(s);
+  return isNaN(d)?'':['日','月','火','水','木','金','土'][d.getDay()];
+}
+function toast(msg,dur=2500,isError=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  t.style.background = isError ? '#c8001e' : '#1a1a2e';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),dur);
+}
+// storage.js（JSONBin読み書き結果）からの通知をここで受け取る
+window.showStorageToast = function(msg, isError){
+  toast(msg, isError?4000:2500, !!isError);
+};
+
+// ─── 起動 ────────────────────────────────────────────────
+initLogin(); // async function — 内部でawait initDB()を実行
+</script>
+</body>
+</html>
